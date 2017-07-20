@@ -1,0 +1,115 @@
+{{- define "table" }}
+{{- range . }}
+<tr>
+    <td class="mdl-data-table__cell--non-numeric">
+        <i class="material-icons mdl-color-text--{{ .IconColor }}">{{ .Icon }}</i>
+    </td>
+    <td class="mdl-data-table__cell--non-numeric">
+        <strong>{{ .Name }}</strong><br/>
+        <small>
+            Replicas: {{ .K8s.Status.AvailableReplicas }} / {{ .K8s.Status.Replicas }}<br/>
+            Revision: {{ .K8s.Status.ObservedGeneration }}
+        </small>
+    </td>
+    <td class="mdl-data-table__cell--non-numeric">
+        {{- range .K8s.Status.Conditions }}
+        {{ .Type }}: {{ .Status }}<br/><small>{{ .Message }}</small><br/>
+        {{- end }}
+    </td>
+    <td class="mdl-data-table__cell--non-numeric">
+        {{- range .Ingress }}
+        {{- if not .Alive }}<strike>{{ end }}
+        <a href="https://{{ .Url }}">{{ .Url }}</a>
+        {{- if not .Alive }}</strike>{{ end }}
+        <br />
+        {{- end }}
+    </td>
+    <td class="mdl-data-table__cell--non-numeric cell-status">
+        {{- range .Ingress }}
+        {{ .Status }}<br/>
+        {{- end }}
+    </td>
+    <td class="mdl-data-table__cell--non-numeric">
+        {{- range .Version }}
+        {{ . }}<br />
+        {{- end }}
+    </td>
+</tr>
+{{- end }}
+{{- end -}}
+
+{{- define "tablehead" }}
+<tr class="mdl-color--blue-grey-100">
+    <th class="mdl-data-table__cell--non-numeric"></th>
+    <th class="mdl-data-table__cell--non-numeric">{{ . }} Services</th>
+    <th class="mdl-data-table__cell--non-numeric">Conditions</th>
+    <th class="mdl-data-table__cell--non-numeric">Url</th>
+    <th class="mdl-data-table__cell--non-numeric cell-status">Status</th>
+    <th class="mdl-data-table__cell--non-numeric">Version</th>
+</tr>
+{{- end -}}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="30">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="static/material.min.css">
+    <script src="static/material.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="static/style.css"/>
+</head>
+
+<body>
+
+<!-- Always shows a header, even in smaller screens. -->
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+    <header class="mdl-layout__header">
+        <div class="mdl-layout__header-row">
+            <!-- Title -->
+            <span class="mdl-layout-title">Status</span>
+            <!-- Add spacer, to align navigation to the right -->
+            <div class="mdl-layout-spacer"></div>
+            <!-- Navigation. We hide it in small screens. -->
+            <nav class="mdl-navigation mdl-layout--large-screen-only">
+                <i class="material-icons">autorenew</i> <span id="since">0</span> seconds Ago ({{ .Now }})
+            </nav>
+        </div>
+    </header>
+
+    <main class="mdl-layout__content">
+        <div class="mdl-grid">
+            <div class="mdl-cell mdl-cell--1-col mdl-cell--hide-tablet mdl-cell--hide-phone"></div>
+            <div class="content mdl-cell mdl-cell--10-col">
+
+                <table class="mdl-data-table mdl-shadow--2dp mdl-js-data-table">
+                    <tbody>
+                    {{ template "tablehead" "Failed" }}
+                    {{ template "table" .Failed }}
+
+                    {{ template "tablehead" "Unhealthy" }}
+                    {{ template "table" .Unhealthy }}
+
+                    {{ template "tablehead" "Healthy" }}
+                    {{ template "table" .Healthy }}
+
+                    {{ template "tablehead" "Unknown" }}
+                    {{ template "table" .Unknown }}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+<script type="application/javascript">
+    var start = new Date(Date({{ .Now }}));
+    window.setInterval(
+        function(){
+            document.getElementById("since").textContent = (((new Date()) - start) / 1000).toFixed();
+        },
+        1000
+    );
+</script>
+</body>
+</html>

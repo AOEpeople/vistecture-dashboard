@@ -1,0 +1,13 @@
+.mdl-data-table {
+    table-layout:fixed;
+    width:100%;
+    white-space: normal;
+}
+
+th:first-of-type, td:first-of-type {
+    width: 60px;
+}
+
+#since {
+    padding: 0 2px 0 2px;
+}
