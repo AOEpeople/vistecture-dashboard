@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/AOEpeople/vistecture"
   packages = ["model/core"]
-  revision = "d6252b56b193dd8657d1d8a7a8ce9cc57fca5280"
+  revision = "d667337ef4d5f6191d4150ade229e67e7e5de0bc"
 
 [[projects]]
   name = "github.com/PuerkitoBio/purell"
@@ -232,6 +232,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4ebdbd0f9eb8faccb0aca87ba9901529ca3f693993070181ef2d1bc5b50a70ea"
+  inputs-digest = "3c1ab7d6f35005d0ffb27f13203e2523fd80de4a62534ca97c9158aa757b362c"
   solver-name = "gps-cdcl"
   solver-version = 1
