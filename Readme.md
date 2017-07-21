@@ -32,3 +32,9 @@ CMD ["vistecture-dashboard"]
 
 WORKDIR /go/src/github.com/AOEpeople/vistecture-dashboard/
 ```
+
+Vistecture Properties
+
+- `healthcheck`: Healthcheck endpoint
+- `deployment`: Has to be set to `kubernetes`
+- `kubernetes-name`: Override name
