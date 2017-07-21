@@ -2,7 +2,15 @@
 {{- range . }}
 <tr>
     <td class="mdl-data-table__cell--non-numeric">
-        <i class="material-icons mdl-color-text--{{ .IconColor }}">{{ .Icon }}</i>
+        {{- if eq .State failed }}
+        <i class="material-icons mdl-color-text--red">error</i>
+        {{- else if eq .State unhealthy }}
+        <i class="material-icons mdl-color-text--red">warning</i>
+        {{- else if eq .State healthy }}
+        <i class="material-icons mdl-color-text--green">check_circle</i>
+        {{- else }}
+        <i class="material-icons mdl-color-text--blue-grey">help</i>
+        {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
         <strong>{{ .Name }}</strong><br/>
@@ -85,17 +93,25 @@
 
                 <table class="mdl-data-table mdl-shadow--2dp mdl-js-data-table">
                     <tbody>
+                    {{- if len .Failed }}
                     {{ template "tablehead" "Failed" }}
                     {{ template "table" .Failed }}
+                    {{- end }}
 
+                    {{- if len .Unhealthy }}
                     {{ template "tablehead" "Unhealthy" }}
                     {{ template "table" .Unhealthy }}
+                    {{- end }}
 
+                    {{- if len .Healthy }}
                     {{ template "tablehead" "Healthy" }}
                     {{ template "table" .Healthy }}
+                    {{- end }}
 
+                    {{- if len .Unknown }}
                     {{ template "tablehead" "Unknown" }}
                     {{ template "table" .Unknown }}
+                    {{- end }}
                     </tbody>
                 </table>
             </div>

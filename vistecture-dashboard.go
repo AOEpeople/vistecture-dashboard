@@ -1,9 +1,8 @@
 package main
 
-import "flag"
-
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -13,47 +12,42 @@ import (
 	"sync"
 	"time"
 
+	"io/ioutil"
+
 	"github.com/AOEpeople/vistecture/model/core"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type (
-	Dashboard struct {
-		ProjectConfigPath string
-		listen            string
-		templates         string
-		demo              bool
+	dashboard struct {
+		projectPath string
+		listen      string
+		templates   string
+		demo        bool
 	}
 
-	// KubeClient is our configured client to access kubernetes
-	KubeClient struct {
-		namespace  string
-		clientset  *kubernetes.Clientset
-		kubeconfig clientcmd.ClientConfig
-		restconfig *rest.Config
+	deployment struct {
+		Name        string
+		State       uint
+		Alive       string
+		Ingress     []ingress
+		Version     []string
+		K8s         apps.Deployment
+		Healthcheck string
 	}
 
-	Deployment struct {
-		Name            string
-		State           uint
-		Alive           string
-		Ingress         []Ingress
-		Version         []string
-		K8s             apps.Deployment
-		Icon, IconColor string
-		Healthcheck     string
-	}
-
-	Ingress struct {
+	ingress struct {
 		Url    string
 		Alive  bool
 		Status string
+	}
+
+	templateData struct {
+		Failed, Unhealthy, Healthy, Unknown []deployment
+		Now                                 time.Time
 	}
 )
 
@@ -64,33 +58,8 @@ const (
 	healthy
 )
 
-//
-//var (
-//	DashboardCommand = cli.Command{
-//		Name:   "dashboard",
-//		Usage:  "Run a HTTP based dashboarde",
-//		Action: (&Dashboard{}).Server,
-//		Flags: []cli.Flag{
-//			cli.StringFlag{
-//				Name:  "listen",
-//				Value: ":8080",
-//				Usage: "Listen Address",
-//			},
-//			cli.StringFlag{
-//				Name:  "templates",
-//				Value: "templates/dashboard",
-//				Usage: "Dashboard Templates (dashboard.html + static/)",
-//			},
-//			cli.BoolFlag{
-//				Name:  "demo",
-//				Usage: "Demo Dashboard",
-//			},
-//		},
-//	}
-//)
-
-func loadProject(ProjectConfigPath string) *core.Project {
-	project, err := core.CreateProject(ProjectConfigPath)
+func loadProject(path string) *core.Project {
+	project, err := core.CreateProject(path)
 	if err != nil {
 		log.Fatal("Project JSON is not valid:", err)
 	}
@@ -101,37 +70,7 @@ func loadProject(ProjectConfigPath string) *core.Project {
 	return project
 }
 
-// KubeClientFromConfig loads a new KubeClient from the usual configuration
-// (KUBECONFIG env param / selfconfigured in kubernetes)
-func KubeClientFromConfig() (*KubeClient, error) {
-	var client = new(KubeClient)
-	var err error
-
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-
-	configOverrides := &clientcmd.ConfigOverrides{}
-
-	client.kubeconfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-
-	client.restconfig, err = client.kubeconfig.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	client.clientset, err = kubernetes.NewForConfig(client.restconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	client.namespace, _, err = client.kubeconfig.Namespace()
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
-}
-
-func checkAlive(wg *sync.WaitGroup, d *Deployment) {
+func checkAlive(wg *sync.WaitGroup, d *deployment) {
 	for i, ing := range d.Ingress {
 		r, err := http.Get("https://" + ing.Url + d.Healthcheck)
 		if err != nil {
@@ -149,153 +88,15 @@ func checkAlive(wg *sync.WaitGroup, d *Deployment) {
 	wg.Done()
 }
 
-func (d *Dashboard) load() ([]*Deployment, error) {
-	project := loadProject(d.ProjectConfigPath)
+func (d *dashboard) load() ([]*deployment, error) {
+	project := loadProject(d.projectPath)
 
 	var deployments *apps.DeploymentList
 	var ingresses *extensions.IngressList
 
 	if d.demo {
-		deployments = &apps.DeploymentList{
-			Items: []apps.Deployment{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "flamingo",
-					},
-					Spec: apps.DeploymentSpec{
-						Template: v1.PodTemplateSpec{
-							Spec: v1.PodSpec{
-								Containers: []v1.Container{
-									{Image: "docker.aoe.com/flamingo:v1.0.0"},
-								},
-							},
-						},
-					},
-					Status: apps.DeploymentStatus{
-						AvailableReplicas:  3,
-						Replicas:           5,
-						ObservedGeneration: 132,
-						Conditions: []apps.DeploymentCondition{
-							{Status: v1.ConditionTrue, Type: "TestCondition", Message: "Test Condition is feeling good!"},
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "akeneo",
-					},
-					Spec: apps.DeploymentSpec{
-						Template: v1.PodTemplateSpec{
-							Spec: v1.PodSpec{
-								Containers: []v1.Container{
-									{Image: "docker.aoe.com/akeneo:v1.2.3"},
-								},
-							},
-						},
-					},
-					Status: apps.DeploymentStatus{
-						AvailableReplicas:  1,
-						Replicas:           1,
-						ObservedGeneration: 32,
-						Conditions: []apps.DeploymentCondition{
-							{Status: v1.ConditionTrue, Type: "TestCondition", Message: "Test Condition is feeling good!"},
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "keycloak",
-					},
-					Spec: apps.DeploymentSpec{
-						Template: v1.PodTemplateSpec{
-							Spec: v1.PodSpec{
-								Containers: []v1.Container{
-									{Image: "docker.aoe.com/keycloak:v1.0.0"},
-									{Image: "docker.aoe.com/keycloak-support:v1.0.0"},
-								},
-							},
-						},
-					},
-					Status: apps.DeploymentStatus{
-						AvailableReplicas:  2,
-						Replicas:           2,
-						ObservedGeneration: 12,
-						Conditions: []apps.DeploymentCondition{
-							{Status: v1.ConditionTrue, Type: apps.DeploymentAvailable, Message: "Test Condition is feeling good!"},
-						},
-					},
-				},
-			},
-		}
-
-		ingresses = &extensions.IngressList{
-			Items: []extensions.Ingress{
-				{
-					Spec: extensions.IngressSpec{
-						Rules: []extensions.IngressRule{
-							{
-								Host: "google.com",
-								IngressRuleValue: extensions.IngressRuleValue{
-									HTTP: &extensions.HTTPIngressRuleValue{
-										Paths: []extensions.HTTPIngressPath{
-											{Backend: extensions.IngressBackend{ServiceName: "flamingo"}, Path: "/"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				{
-					Spec: extensions.IngressSpec{
-						Rules: []extensions.IngressRule{
-							{
-								Host: "google.com",
-								IngressRuleValue: extensions.IngressRuleValue{
-									HTTP: &extensions.HTTPIngressRuleValue{
-										Paths: []extensions.HTTPIngressPath{
-											{Backend: extensions.IngressBackend{ServiceName: "akeneo"}, Path: "/akeneo"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				{
-					Spec: extensions.IngressSpec{
-						Rules: []extensions.IngressRule{
-							{
-								Host: "keycloak.bla",
-								IngressRuleValue: extensions.IngressRuleValue{
-									HTTP: &extensions.HTTPIngressRuleValue{
-										Paths: []extensions.HTTPIngressPath{
-											{Backend: extensions.IngressBackend{ServiceName: "keycloak"}, Path: "/blabla"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				{
-					Spec: extensions.IngressSpec{
-						Rules: []extensions.IngressRule{
-							{
-								Host: "keycloak.om3",
-								IngressRuleValue: extensions.IngressRuleValue{
-									HTTP: &extensions.HTTPIngressRuleValue{
-										Paths: []extensions.HTTPIngressPath{
-											{Backend: extensions.IngressBackend{ServiceName: "keycloak"}, Path: "/"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
+		deployments = demoDeployments()
+		ingresses = demoIngresses()
 	} else {
 		client, err := KubeClientFromConfig()
 		if err != nil {
@@ -320,17 +121,17 @@ func (d *Dashboard) load() ([]*Deployment, error) {
 		deploymentIndex[deployment.Name] = deployment
 	}
 
-	ingressIndex := make(map[string][]Ingress)
-	for _, ingress := range ingresses.Items {
-		for _, rule := range ingress.Spec.Rules {
+	ingressIndex := make(map[string][]ingress)
+	for _, ing := range ingresses.Items {
+		for _, rule := range ing.Spec.Rules {
 			for _, p := range rule.HTTP.Paths {
 				name := p.Backend.ServiceName
-				ingressIndex[name] = append(ingressIndex[name], Ingress{Url: rule.Host + p.Path})
+				ingressIndex[name] = append(ingressIndex[name], ingress{Url: rule.Host + p.Path})
 			}
 		}
 	}
 
-	var deploymentlist []*Deployment
+	var deploymentlist []*deployment
 	var wg = new(sync.WaitGroup)
 
 	for _, application := range project.Applications {
@@ -341,33 +142,31 @@ func (d *Dashboard) load() ([]*Deployment, error) {
 		if n, ok := application.Properties["kubernetes-name"]; ok && n != "" {
 			name = n
 		}
-		deployment, exists := deploymentIndex[name]
 
-		d := Deployment{
+		depl, exists := deploymentIndex[name]
+
+		d := deployment{
 			Name:  name,
 			State: unknown,
-			Alive: "0",
-		}
-
-		if h, ok := application.Properties["healthcheck"]; ok {
-			d.Healthcheck = h
 		}
 
 		if exists {
-			d.K8s = deployment
+			d.K8s = depl
 			d.State = failed
 
-			for _, c := range deployment.Status.Conditions {
+			if h, ok := application.Properties["healthcheck"]; ok {
+				d.Healthcheck = h
+			}
+
+			for _, c := range depl.Status.Conditions {
 				if c.Type == apps.DeploymentAvailable && c.Status == v1.ConditionTrue {
 					d.State = healthy
 				}
 			}
 
-			var v []string
-			for _, c := range deployment.Spec.Template.Spec.Containers {
-				v = append(v, c.Image)
+			for _, c := range depl.Spec.Template.Spec.Containers {
+				d.Version = append(d.Version, c.Image)
 			}
-			d.Version = v
 
 			if len(ingressIndex[name]) > 0 && d.State != failed {
 				d.Ingress = ingressIndex[name]
@@ -390,7 +189,7 @@ func e(rw http.ResponseWriter, err error) {
 	fmt.Fprintf(rw, "%+v", err)
 }
 
-func (d *Dashboard) handler(rw http.ResponseWriter, r *http.Request) {
+func (d *dashboard) handler(rw http.ResponseWriter, r *http.Request) {
 	deployments, err := d.load()
 
 	if err != nil {
@@ -398,44 +197,46 @@ func (d *Dashboard) handler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tpl, err := template.ParseFiles(path.Join(d.templates, "dashboard.html"))
+	tpl := template.New("dashboard")
+
+	tpl.Funcs(template.FuncMap{
+		"unknown":   func() uint { return unknown },
+		"unhealthy": func() uint { return unhealthy },
+		"failed":    func() uint { return failed },
+		"healthy":   func() uint { return healthy },
+	})
+
+	b, err := ioutil.ReadFile(path.Join(d.templates, "dashboard.html"))
 	if err != nil {
 		e(rw, err)
 		return
 	}
 
-	type data struct {
-		Failed, Unhealthy, Healthy, Unknown []Deployment
-		Now                                 time.Time
+	tpl, err = tpl.Parse(string(b))
+	if err != nil {
+		e(rw, err)
+		return
 	}
 
-	viewdata := data{
+	viewdata := templateData{
 		Now: time.Now(),
 	}
 
 	for _, d := range deployments {
 		switch d.State {
 		case unknown:
-			d.Icon = "help"
-			d.IconColor = "blue-grey"
 			viewdata.Unknown = append(viewdata.Unknown, *d)
 		case unhealthy:
-			d.Icon = "warning"
-			d.IconColor = "red"
 			viewdata.Unhealthy = append(viewdata.Unhealthy, *d)
 		case failed:
-			d.Icon = "error"
-			d.IconColor = "red"
 			viewdata.Failed = append(viewdata.Failed, *d)
 		case healthy:
-			d.Icon = "check_circle"
-			d.IconColor = "green"
 			viewdata.Healthy = append(viewdata.Healthy, *d)
 		}
 	}
 
 	buf := new(bytes.Buffer)
-	err = tpl.Execute(buf, viewdata)
+	err = tpl.ExecuteTemplate(buf, "dashboard", viewdata)
 	if err != nil {
 		e(rw, err)
 		return
@@ -447,7 +248,7 @@ func (d *Dashboard) handler(rw http.ResponseWriter, r *http.Request) {
 }
 
 // AnalyzeAction controller action
-func (d *Dashboard) Server() error {
+func (d *dashboard) Server() error {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path.Join(d.templates, "static")))))
 	http.HandleFunc("/", d.handler)
 
@@ -458,15 +259,15 @@ func (d *Dashboard) Server() error {
 func main() {
 	flag.Set("alsologtostderr", "true")
 
-	d := &Dashboard{}
-	flag.StringVar(&d.ProjectConfigPath, "config", "../project", "Path to project config")
+	d := &dashboard{}
+	flag.StringVar(&d.projectPath, "config", "../project", "Path to project config")
 	flag.StringVar(&d.templates, "templates", "templates/dashboard", "Path to dashboard.html and static/ folder")
 	flag.StringVar(&d.listen, "listen", ":8080", "server listen address")
 	flag.BoolVar(&d.demo, "demo", false, "demo mode (for templating)")
 
 	flag.Parse()
 
-	loadProject(d.ProjectConfigPath)
+	loadProject(d.projectPath)
 
 	http.DefaultClient.Timeout = 2 * time.Second
 
