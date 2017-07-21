@@ -60,7 +60,7 @@ func demoDeployments() *apps.DeploymentList {
 					Template: v1.PodTemplateSpec{
 						Spec: v1.PodSpec{
 							Containers: []v1.Container{
-								{Image: "docker.aoe.com/flamingo:v1.0.0"},
+								{Image: "flamingo:v1.0.0"},
 							},
 						},
 					},
@@ -82,7 +82,7 @@ func demoDeployments() *apps.DeploymentList {
 					Template: v1.PodTemplateSpec{
 						Spec: v1.PodSpec{
 							Containers: []v1.Container{
-								{Image: "docker.aoe.com/akeneo:v1.2.3"},
+								{Image: "akeneo:v1.2.3"},
 							},
 						},
 					},
@@ -104,8 +104,8 @@ func demoDeployments() *apps.DeploymentList {
 					Template: v1.PodTemplateSpec{
 						Spec: v1.PodSpec{
 							Containers: []v1.Container{
-								{Image: "docker.aoe.com/keycloak:v1.0.0"},
-								{Image: "docker.aoe.com/keycloak-support:v1.0.0"},
+								{Image: "keycloak:v1.0.0"},
+								{Image: "keycloak-support:v1.0.0"},
 							},
 						},
 					},
