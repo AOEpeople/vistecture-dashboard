@@ -142,7 +142,7 @@ func (d *dashboard) load() ([]*deployment, error) {
 		deployments = demoDeployments()
 		ingresses = demoIngresses()
 	} else {
-		client, err := KubeClientFromConfig()
+		client, err := kubeClientFromConfig()
 		if err != nil {
 			return nil, err
 		}
