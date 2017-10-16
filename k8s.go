@@ -11,7 +11,8 @@ import (
 )
 
 type (
-	kubeClient struct {
+	// KubeClient is a Kubernetes Client Object
+	KubeClient struct {
 		namespace  string
 		clientset  *kubernetes.Clientset
 		kubeconfig clientcmd.ClientConfig
@@ -19,10 +20,10 @@ type (
 	}
 )
 
-// KubeClientFromConfig loads a new kubeClient from the usual configuration
+// KubeClientFromConfig loads a new KubeClient from the usual configuration
 // (KUBECONFIG env param / selfconfigured in kubernetes)
-func KubeClientFromConfig() (*kubeClient, error) {
-	var client = new(kubeClient)
+func KubeClientFromConfig() (*KubeClient, error) {
+	var client = new(KubeClient)
 	var err error
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()

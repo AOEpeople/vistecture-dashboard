@@ -16,6 +16,7 @@ import (
 
 	"github.com/AOEpeople/vistecture/model/core"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
@@ -40,7 +41,7 @@ type (
 	}
 
 	ingress struct {
-		Url    string
+		URL    string
 		Alive  bool
 		Status string
 	}
@@ -48,6 +49,16 @@ type (
 	templateData struct {
 		Failed, Unhealthy, Healthy, Unknown []deployment
 		Now                                 time.Time
+	}
+	// Response Wraps a list of Services
+	Response struct {
+		Services []Service `json:"services"`
+	}
+	// Service describes a Service the Application is dependent of, its Liveness and Details on its Status
+	Service struct {
+		Name    string `json:"name"`
+		Alive   bool   `json:"alive"`
+		Details string `json:"details"`
 	}
 )
 
@@ -72,18 +83,51 @@ func loadProject(path string) *core.Project {
 
 func checkAlive(wg *sync.WaitGroup, d *deployment) {
 	for i, ing := range d.Ingress {
-		r, err := http.Get("https://" + ing.Url + d.Healthcheck)
-		if err != nil {
-			d.Ingress[i].Status = err.Error()
+		statusText := fmt.Sprintf("Replica #%d //  ", i+1)
+
+		r, httpErr := http.Get("https://" + ing.URL + d.Healthcheck)
+
+		if httpErr != nil {
 			d.State = unhealthy
-		} else {
-			if r.StatusCode < 500 {
-				d.Ingress[i].Alive = true
-			} else {
-				d.State = unhealthy
-			}
-			d.Ingress[i].Status = r.Status
+			d.Ingress[i].Status = httpErr.Error()
+			continue
 		}
+
+		statusCode := r.StatusCode
+
+		jsonMap := &Response{
+			Services: []Service{},
+		}
+
+		responseBody, bodyErr := ioutil.ReadAll(r.Body)
+
+		if bodyErr != nil {
+			d.State = unhealthy
+			d.Ingress[i].Status = "Healthcheck not readable"
+			continue
+		}
+
+		jsonError := json.Unmarshal(responseBody, jsonMap)
+
+		// Check if Response is valid
+		if jsonError != nil {
+			d.State = unhealthy
+			d.Ingress[i].Status = "Healthcheck Format Error"
+			continue
+		}
+
+		if statusCode >= 500 {
+			d.State = unhealthy
+			for _, service := range jsonMap.Services {
+				if !service.Alive {
+					statusText = statusText + fmt.Sprintf("Application \"%s\" reports Error: \"%s\" // ", service.Name, service.Details)
+				}
+			}
+		} else {
+			d.Ingress[i].Alive = true
+			statusText = fmt.Sprintf("%s %s", r.StatusCode, r.Status)
+		}
+		d.Ingress[i].Status = statusText
 	}
 	wg.Done()
 }
@@ -126,7 +170,7 @@ func (d *dashboard) load() ([]*deployment, error) {
 		for _, rule := range ing.Spec.Rules {
 			for _, p := range rule.HTTP.Paths {
 				name := p.Backend.ServiceName
-				ingressIndex[name] = append(ingressIndex[name], ingress{Url: rule.Host + p.Path})
+				ingressIndex[name] = append(ingressIndex[name], ingress{URL: rule.Host + p.Path})
 			}
 		}
 	}
