@@ -27,7 +27,7 @@
     <td class="mdl-data-table__cell--non-numeric">
         {{- range .Ingress }}
         {{- if not .Alive }}<strike>{{ end }}
-        <a href="https://{{ .Url }}">{{ .Url }}</a>
+        <a href="https://{{ .URL }}">{{ .URL }}</a>
         {{- if not .Alive }}</strike>{{ end }}
         <br />
         {{- end }}

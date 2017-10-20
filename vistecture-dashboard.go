@@ -103,7 +103,7 @@ func checkAlive(wg *sync.WaitGroup, d *deployment) {
 
 		if bodyErr != nil {
 			d.State = unhealthy
-			d.Ingress[i].Status = "Healthcheck not readable"
+			d.Ingress[i].Status = statusText + "Could not read from Healthcheck"
 			continue
 		}
 
@@ -112,7 +112,7 @@ func checkAlive(wg *sync.WaitGroup, d *deployment) {
 		// Check if Response is valid
 		if jsonError != nil {
 			d.State = unhealthy
-			d.Ingress[i].Status = "Healthcheck Format Error"
+			d.Ingress[i].Status = statusText + "Healthcheck Format Error : %s", string(responseBody))
 			continue
 		}
 
@@ -125,7 +125,7 @@ func checkAlive(wg *sync.WaitGroup, d *deployment) {
 			}
 		} else {
 			d.Ingress[i].Alive = true
-			statusText = fmt.Sprintf("%s %s", r.StatusCode, r.Status)
+			statusText = string(r.Status)
 		}
 		d.Ingress[i].Status = statusText
 	}
