@@ -112,7 +112,7 @@ func checkAlive(wg *sync.WaitGroup, d *deployment) {
 		// Check if Response is valid
 		if jsonError != nil {
 			d.State = unhealthy
-			d.Ingress[i].Status = statusText + "Healthcheck Format Error : %s", string(responseBody))
+			d.Ingress[i].Status = statusText + fmt.Sprintf("Healthcheck Format Error")
 			continue
 		}
 
