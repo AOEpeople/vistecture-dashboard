@@ -20,6 +20,8 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"sort"
+	"github.com/davecgh/go-spew/spew"
 )
 
 type (
@@ -57,6 +59,8 @@ type (
 		Now                                 time.Time
 	}
 
+	ByName []deployment
+
 	// Response Wraps a list of Services
 	Response struct {
 		Services []Service `json:"services"`
@@ -82,8 +86,12 @@ const (
 	unhealthy
 	healthy
 	// This is the Interval for goroutine polling of kubernetes
-	refreshInterval = 30
+	refreshInterval = 15
 )
+
+func (a ByName) Len() int           { return len(a) }
+func (a ByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 
 // loadProject loads the json file from a project folder
 func loadProject(path string) *core.Project {
@@ -416,6 +424,11 @@ func (stm *StatusManager) handleStatus(rw http.ResponseWriter, r *http.Request, 
 			viewdata.Healthy = append(viewdata.Healthy, deployment)
 		}
 	}
+
+	sort.Sort(ByName(viewdata.Unknown))
+	sort.Sort(ByName(viewdata.Unhealthy))
+	sort.Sort(ByName(viewdata.Failed))
+	sort.Sort(ByName(viewdata.Healthy))
 
 	d.renderStatus(rw, viewdata)
 }
