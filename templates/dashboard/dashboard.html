@@ -2,15 +2,15 @@
 {{- range . }}
 <tr>
     <td class="mdl-data-table__cell--non-numeric">
-        {{- if eq .State failed }}
+    {{- if eq .State failed }}
         <i class="material-icons mdl-color-text--red">error</i>
-        {{- else if eq .State unhealthy }}
+    {{- else if eq .State unhealthy }}
         <i class="material-icons mdl-color-text--red">warning</i>
-        {{- else if eq .State healthy }}
+    {{- else if eq .State healthy }}
         <i class="material-icons mdl-color-text--green">check_circle</i>
-        {{- else }}
+    {{- else }}
         <i class="material-icons mdl-color-text--blue-grey">help</i>
-        {{- end }}
+    {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
         <strong>{{ .Name }}</strong><br/>
@@ -20,27 +20,29 @@
         </small>
     </td>
     <td class="mdl-data-table__cell--non-numeric">
-        {{- range .K8s.Status.Conditions }}
-        {{ .Type }}: {{ .Status }}<br/><small>{{ .Message }}</small><br/>
-        {{- end }}
+    {{- range .K8s.Status.Conditions }}
+    {{ .Type }}: {{ .Status }}<br/>
+        <small>{{ .Message }}</small>
+        <br/>
+    {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
-        {{- range .Ingress }}
-        {{- if not .Alive }}<strike>{{ end }}
+    {{- range .Ingress }}
+    {{- if not .Alive }}<strike>{{ end }}
         <a href="https://{{ .URL }}">{{ .URL }}</a>
-        {{- if not .Alive }}</strike>{{ end }}
-        <br />
-        {{- end }}
+    {{- if not .Alive }}</strike>{{ end }}
+        <br/>
+    {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric cell-status">
-        {{- range .Ingress }}
-        {{ .Status }}<br/>
-        {{- end }}
+    {{- range .Ingress }}
+    {{ .Status }}<br/>
+    {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
-        {{- range .Version }}
-        {{ . }}<br />
-        {{- end }}
+    {{- range .Version }}
+    {{ . }}<br/>
+    {{- end }}
     </td>
 </tr>
 {{- end }}
@@ -61,7 +63,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="refresh" content="180">
+    <meta http-equiv="refresh" content="30">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="static/material.min.css">
     <script src="static/material.min.js"></script>
@@ -120,10 +122,10 @@
 <script type="application/javascript">
     var start = new Date(Date({{ .Now }}));
     window.setInterval(
-        function(){
-            document.getElementById("since").textContent = (((new Date()) - start) / 1000).toFixed();
-        },
-        1000
+            function () {
+                document.getElementById("since").textContent = (((new Date()) - start) / 1000).toFixed();
+            },
+            1000
     );
 </script>
 </body>

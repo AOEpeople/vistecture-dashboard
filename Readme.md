@@ -17,6 +17,14 @@ dep ensure
 go run vistecture-dashboard.go k8s.go
 ```
 
+For a demo display please use the example/demoproject Path from the vistecture Repo, i.e.
+
+
+```
+go run vistecture-dashboard.go k8s.go -demo=1 -config=/path_to_you_repo/vistecture/example/ports-and-adapters-architecture
+```
+And access it via http://localhost:8080
+
 Run: `vistecture-dashboard`
 
 Example Project Dockerfile
