@@ -21,7 +21,6 @@ import (
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"sort"
-	"github.com/davecgh/go-spew/spew"
 )
 
 type (
