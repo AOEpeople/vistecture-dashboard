@@ -143,7 +143,7 @@ func checkAlive(d *deployment) {
 		// Check if Response is valid
 		if jsonError != nil {
 			d.State = unhealthy
-			d.Ingress[i].Status = statusText + fmt.Sprintf("Healthcheck Format Error from from %s", checkUrl)
+			d.Ingress[i].Status = statusText + fmt.Sprintf("Healthcheck Format Error from %s", checkUrl)
 			continue
 		}
 
