@@ -114,7 +114,9 @@ func checkAlive(d *deployment) {
 	for i, ing := range d.Ingress {
 		statusText := fmt.Sprintf("Replica #%d //  ", i+1)
 
-		r, httpErr := http.Get("https://" + ing.URL + d.Healthcheck)
+		checkUrl := "https://" + ing.URL + d.Healthcheck
+
+		r, httpErr := http.Get(checkUrl)
 
 		if httpErr != nil {
 			d.State = unhealthy
@@ -141,7 +143,7 @@ func checkAlive(d *deployment) {
 		// Check if Response is valid
 		if jsonError != nil {
 			d.State = unhealthy
-			d.Ingress[i].Status = statusText + fmt.Sprintf("Healthcheck Format Error")
+			d.Ingress[i].Status = statusText + fmt.Sprintf("Healthcheck Format Error from from %s", checkUrl)
 			continue
 		}
 
