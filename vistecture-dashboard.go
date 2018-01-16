@@ -293,29 +293,29 @@ func (stm *StatusManager) checkAppStatus(app *core.Application, dash *dashboard,
 
 // fetchStatus controls the interval in which new info is fetched and loops over configured applications
 func (stm *StatusManager) fetchStatus(d *dashboard) {
-	project := loadProject(d.projectPath)
-
-	// Add Deployments to Dashboard
-	deployments, err := d.getDeployments()
-
-	if err != nil {
-		panic("Could not get Deployment Config, check Configuration and Kubernetes Connection")
-	}
-
-	d.deployments = deployments
-
-	// Add Ingresses to Dasboard
-	ingresses, err := d.getIngresses()
-
-	if err != nil {
-		panic("Could not get Ingress Config, check Configuration and Kubernetes Connection")
-	}
-
-	d.ingresses = ingresses
-
 	var tickIteration = 0
 
 	for range time.Tick(refreshInterval * time.Second) {
+		project := loadProject(d.projectPath)
+
+		// Add Deployments to Dashboard
+		deployments, err := d.getDeployments()
+
+		if err != nil {
+			panic("Could not get Deployment Config, check Configuration and Kubernetes Connection")
+		}
+
+		d.deployments = deployments
+
+		// Add Ingresses to Dasboard
+		ingresses, err := d.getIngresses()
+
+		if err != nil {
+			panic("Could not get Ingress Config, check Configuration and Kubernetes Connection")
+		}
+
+		d.ingresses = ingresses
+
 		log.Printf("Check run #%d", tickIteration)
 		tickIteration++
 
