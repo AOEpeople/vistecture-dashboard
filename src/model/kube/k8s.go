@@ -1,4 +1,4 @@
-package main
+package kube
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,8 +13,8 @@ import (
 type (
 	// kubeClient is a Kubernetes Client Object
 	kubeClient struct {
-		namespace  string
-		clientset  *kubernetes.Clientset
+		Namespace  string
+		Clientset  *kubernetes.Clientset
 		kubeconfig clientcmd.ClientConfig
 		restconfig *rest.Config
 	}
@@ -22,7 +22,7 @@ type (
 
 // kubeClientFromConfig loads a new kubeClient from the usual configuration
 // (KUBECONFIG env param / selfconfigured in kubernetes)
-func kubeClientFromConfig() (*kubeClient, error) {
+func KubeClientFromConfig() (*kubeClient, error) {
 	var client = new(kubeClient)
 	var err error
 
@@ -33,16 +33,21 @@ func kubeClientFromConfig() (*kubeClient, error) {
 	client.kubeconfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 
 	client.restconfig, err = client.kubeconfig.ClientConfig()
+	/**
+	stage := "review"
+	project := "lhr"
+	client.restconfig.TLSClientConfig.ServerName = fmt.Sprintf("api.kubernetes.%s.%s.om3.aoe.lan", stage, project)
+	*/
 	if err != nil {
 		return nil, err
 	}
 
-	client.clientset, err = kubernetes.NewForConfig(client.restconfig)
+	client.Clientset, err = kubernetes.NewForConfig(client.restconfig)
 	if err != nil {
 		return nil, err
 	}
 
-	client.namespace, _, err = client.kubeconfig.Namespace()
+	client.Namespace, _, err = client.kubeconfig.Namespace()
 	if err != nil {
 		return nil, err
 	}
