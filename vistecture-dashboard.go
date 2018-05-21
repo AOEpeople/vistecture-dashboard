@@ -15,12 +15,15 @@ func main() {
 	flag.StringVar(&d.ProjectPath, "config", "../project", "Path to project config")
 	flag.StringVar(&d.Templates, "Templates", "Templates/dashboard", "Path to dashboard.html and static/ folder")
 	flag.StringVar(&d.Listen, "Listen", ":8080", "server Listen address")
-	//flag.BoolVar(&d.Demo, "Demo", false, "Demo mode (for templating)")
+	flag.BoolVar(&d.DemoMode, "Demo", false, "Demo mode (for templating, demo)")
 
 	flag.Parse()
 
 	http.DefaultClient.Timeout = 2 * time.Second
 
-	d.Server()
+	err := d.Server()
+	if err != nil {
+		panic("Error while starting server: " + err.Error())
+	}
 
 }

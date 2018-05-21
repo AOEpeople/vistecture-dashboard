@@ -22,6 +22,7 @@ type (
 		ProjectPath string
 		Templates   string
 		Listen      string
+		DemoMode    bool
 	}
 
 	ByName []kube.AppDeploymentInfo
@@ -39,7 +40,7 @@ func (d *DashboardController) Server() error {
 	vistecture.LoadProject(d.ProjectPath)
 
 	//Prepare the status fetcher (will run in background and starts regual checks)
-	statusFetcher := kube.NewStatusFetcher(d.ProjectPath)
+	statusFetcher := kube.NewStatusFetcher(d.ProjectPath, d.DemoMode)
 	go statusFetcher.FetchStatusInRegularInterval()
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path.Join(d.Templates, "static")))))

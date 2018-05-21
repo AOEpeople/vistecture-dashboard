@@ -15,12 +15,12 @@
     <td class="mdl-data-table__cell--non-numeric">
         <strong>{{ .Name }}</strong><br/>
         <small>
-            Replicas: {{ .K8s.Status.AvailableReplicas }} / {{ .K8s.Status.Replicas }}<br/>
-            Revision: {{ .K8s.Status.ObservedGeneration }}
+            Replicas: {{ .K8sDeployment.Status.AvailableReplicas }} / {{ .K8sDeployment.Status.Replicas }}<br/>
+            Revision: {{ .K8sDeployment.Status.ObservedGeneration }}<br/>
         </small>
     </td>
     <td class="mdl-data-table__cell--non-numeric">
-    {{- range .K8s.Status.Conditions }}
+    {{- range .K8sDeployment.Status.Conditions }}
     {{ .Type }}: {{ .Status }}<br/>
         <small>{{ .Message }}</small>
         <br/>
@@ -28,16 +28,15 @@
     </td>
     <td class="mdl-data-table__cell--non-numeric">
     {{- range .Ingress }}
-    {{- if not .Alive }}<strike>{{ end }}
         <a href="https://{{ .URL }}">{{ .URL }}</a>
-    {{- if not .Alive }}</strike>{{ end }}
+        {{- if .Alive }}<i class="material-icons mdl-color-text--red">not alive</i>{{ end }}
+        {{- if not .Alive }}<i class="material-icons mdl-color-text--green">alive</i>{{ end }}
         <br/>
     {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric cell-status">
-    {{- range .Ingress }}
-    {{ .Status }}<br/>
-    {{- end }}
+    {{- if .StateReason }}{{.StateReason}}{{ end }}
+    {{- if .HealthyAlsoFromIngress }}<i class="material-icons mdl-color-text--green">Public</i>{{ end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
     {{- range .Version }}
@@ -53,8 +52,8 @@
     <th class="mdl-data-table__cell--non-numeric"></th>
     <th class="mdl-data-table__cell--non-numeric">{{ . }} Services</th>
     <th class="mdl-data-table__cell--non-numeric">Conditions</th>
-    <th class="mdl-data-table__cell--non-numeric">Url</th>
-    <th class="mdl-data-table__cell--non-numeric cell-status">Status</th>
+    <th class="mdl-data-table__cell--non-numeric">Urls (Ingresses)</th>
+    <th class="mdl-data-table__cell--non-numeric cell-status">Status Reason</th>
     <th class="mdl-data-table__cell--non-numeric">Version</th>
 </tr>
 {{- end -}}

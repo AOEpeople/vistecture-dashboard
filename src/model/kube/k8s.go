@@ -1,9 +1,11 @@
 package kube
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
+	v1 "k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/rest"
@@ -17,6 +19,16 @@ type (
 		Clientset  *kubernetes.Clientset
 		kubeconfig clientcmd.ClientConfig
 		restconfig *rest.Config
+	}
+
+	KubeInfoServiceInterface interface {
+		GetKubernetesDeployments() (map[string]apps.Deployment, error)
+		GetIngressesByService() (map[string][]K8sIngressInfo, error)
+		GetServices() (map[string]v1.Service, error)
+	}
+
+	KubeInfoService struct {
+		DemoMode bool
 	}
 )
 
@@ -33,11 +45,11 @@ func KubeClientFromConfig() (*kubeClient, error) {
 	client.kubeconfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 
 	client.restconfig, err = client.kubeconfig.ClientConfig()
-	/**
+
 	stage := "review"
 	project := "lhr"
 	client.restconfig.TLSClientConfig.ServerName = fmt.Sprintf("api.kubernetes.%s.%s.om3.aoe.lan", stage, project)
-	*/
+
 	if err != nil {
 		return nil, err
 	}
@@ -55,147 +67,82 @@ func KubeClientFromConfig() (*kubeClient, error) {
 	return client, nil
 }
 
-func demoDeployments() *apps.DeploymentList {
-	return &apps.DeploymentList{
-		Items: []apps.Deployment{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "flamingo",
-				},
-				Spec: apps.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
-								{Image: "flamingo:v1.0.0"},
-							},
-						},
-					},
-				},
-				Status: apps.DeploymentStatus{
-					AvailableReplicas:  3,
-					Replicas:           5,
-					ObservedGeneration: 132,
-					Conditions: []apps.DeploymentCondition{
-						{Status: v1.ConditionTrue, Type: "TestCondition", Message: "Test Condition is feeling good!"},
-					},
-				},
-			},
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "akeneo",
-				},
-				Spec: apps.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
-								{Image: "akeneo:v1.2.3"},
-							},
-						},
-					},
-				},
-				Status: apps.DeploymentStatus{
-					AvailableReplicas:  1,
-					Replicas:           1,
-					ObservedGeneration: 32,
-					Conditions: []apps.DeploymentCondition{
-						{Status: v1.ConditionTrue, Type: "TestCondition", Message: "Test Condition is feeling good!"},
-					},
-				},
-			},
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "keycloak",
-				},
-				Spec: apps.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
-								{Image: "keycloak:v1.0.0"},
-								{Image: "keycloak-support:v1.0.0"},
-							},
-						},
-					},
-				},
-				Status: apps.DeploymentStatus{
-					AvailableReplicas:  2,
-					Replicas:           2,
-					ObservedGeneration: 12,
-					Conditions: []apps.DeploymentCondition{
-						{Status: v1.ConditionTrue, Type: apps.DeploymentAvailable, Message: "Test Condition is feeling good!"},
-					},
-				},
-			},
-		},
+// getKubernetesDeployments fetches from Config or Demo Data
+func (k *KubeInfoService) GetKubernetesDeployments() (map[string]apps.Deployment, error) {
+	var deployments *apps.DeploymentList
+
+	client, err := KubeClientFromConfig()
+	if err != nil {
+		return nil, err
 	}
+
+	deploymentClient := client.Clientset.AppsV1beta1().Deployments(client.Namespace)
+	deployments, err = deploymentClient.List(metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	deploymentIndex := make(map[string]apps.Deployment, len(deployments.Items))
+
+	for _, deployment := range deployments.Items {
+		deploymentIndex[deployment.Name] = deployment
+	}
+
+	return deploymentIndex, nil
 }
 
-func demoIngresses() *extensions.IngressList {
-	return &extensions.IngressList{
-		Items: []extensions.Ingress{
-			{
-				Spec: extensions.IngressSpec{
-					Rules: []extensions.IngressRule{
-						{
-							Host: "google.com",
-							IngressRuleValue: extensions.IngressRuleValue{
-								HTTP: &extensions.HTTPIngressRuleValue{
-									Paths: []extensions.HTTPIngressPath{
-										{Backend: extensions.IngressBackend{ServiceName: "flamingo"}, Path: "/"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			{
-				Spec: extensions.IngressSpec{
-					Rules: []extensions.IngressRule{
-						{
-							Host: "google.com",
-							IngressRuleValue: extensions.IngressRuleValue{
-								HTTP: &extensions.HTTPIngressRuleValue{
-									Paths: []extensions.HTTPIngressPath{
-										{Backend: extensions.IngressBackend{ServiceName: "akeneo"}, Path: "/akeneo"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			{
-				Spec: extensions.IngressSpec{
-					Rules: []extensions.IngressRule{
-						{
-							Host: "keycloak.bla",
-							IngressRuleValue: extensions.IngressRuleValue{
-								HTTP: &extensions.HTTPIngressRuleValue{
-									Paths: []extensions.HTTPIngressPath{
-										{Backend: extensions.IngressBackend{ServiceName: "keycloak"}, Path: "/blabla"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			{
-				Spec: extensions.IngressSpec{
-					Rules: []extensions.IngressRule{
-						{
-							Host: "keycloak.om3",
-							IngressRuleValue: extensions.IngressRuleValue{
-								HTTP: &extensions.HTTPIngressRuleValue{
-									Paths: []extensions.HTTPIngressPath{
-										{Backend: extensions.IngressBackend{ServiceName: "keycloak"}, Path: "/"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+// getIngressesByService fetches from Config or Demo Data
+func (k *KubeInfoService) GetIngressesByService() (map[string][]K8sIngressInfo, error) {
+	var ingresses *extensions.IngressList
+
+	client, err := KubeClientFromConfig()
+
+	if err != nil {
+		return nil, err
 	}
+
+	ingressClient := client.Clientset.ExtensionsV1beta1().Ingresses(client.Namespace)
+	ingresses, err = ingressClient.List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return groupByServiceName(ingresses), nil
+}
+
+func groupByServiceName(ingresses *extensions.IngressList) map[string][]K8sIngressInfo {
+	ingressIndex := make(map[string][]K8sIngressInfo)
+	for _, ing := range ingresses.Items {
+		for _, rule := range ing.Spec.Rules {
+			for _, p := range rule.HTTP.Paths {
+				name := p.Backend.ServiceName
+				ingressIndex[name] = append(ingressIndex[name], K8sIngressInfo{URL: rule.Host + p.Path})
+			}
+		}
+	}
+	return ingressIndex
+}
+
+func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
+
+	client, err := KubeClientFromConfig()
+
+	if err != nil {
+		return nil, err
+	}
+
+	serviceClient := client.Clientset.CoreV1().Services(client.Namespace)
+	services, err := serviceClient.List(metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	serviceIndex := make(map[string]v1.Service)
+	for _, service := range services.Items {
+		serviceIndex[service.Name] = service
+
+	}
+	return serviceIndex, nil
 }

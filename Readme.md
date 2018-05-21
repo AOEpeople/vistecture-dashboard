@@ -14,15 +14,15 @@ go get -u github.com/golang/dep/cmd/dep
 dep ensure
 
 # run
-go run vistecture-dashboard.go k8s.go
+go run vistecture-dashboard.go
 ```
 
-For a demo display please use the example/demoproject Path from the vistecture Repo, i.e.
+For a demo display please use:
+```
+go run vistecture-dashboard.go -config=example/vistecture-config.yml -Demo=1
+```
 
 
-```
-go run vistecture-dashboard.go k8s.go -demo=1 -config=/path_to_you_repo/vistecture/example/ports-and-adapters-architecture
-```
 And access it via http://localhost:8080
 
 Run: `vistecture-dashboard`
@@ -41,8 +41,17 @@ CMD ["vistecture-dashboard"]
 WORKDIR /go/src/github.com/AOEpeople/vistecture-dashboard/
 ```
 
-Vistecture Properties
+Vistecture Properties that are used:
 
-- `healthcheck`: Healthcheck endpoint
-- `deployment`: Has to be set to `kubernetes`
-- `kubernetes-name`: Override name
+- `healthCheckPath`: Healthcheck endpoint (Optional - if not set just the base url is called) - If a healthCheckPath is configured it need to match the defined format (see below)
+- `deployment`: Has to be set to `kubernetes` (otherwise app is not checked)
+- `k8sDeploymentName`: Override the name of the deployment in kubernetes that is checked(default = appname)
+- `k8sHealthCheckServiceName`: Override service name that is used to check health (default = appname)
+- `k8sHealthCheckThroughIngress`: If the app should be checked from public (ingress is required for the service)
+
+
+## Healtcheck Format:
+
+```
+
+```
