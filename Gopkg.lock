@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/AOEpeople/vistecture"
   packages = ["model/core"]
-  revision = "d667337ef4d5f6191d4150ade229e67e7e5de0bc"
+  revision = "61ca34605b9d146b4f883079df44753c9129c238"
 
 [[projects]]
   name = "github.com/PuerkitoBio/purell"
