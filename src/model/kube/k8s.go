@@ -1,8 +1,6 @@
 package kube
 
 import (
-	"fmt"
-
 	"regexp"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,10 +47,6 @@ func KubeClientFromConfig() (*kubeClient, error) {
 	client.kubeconfig = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 
 	client.restconfig, err = client.kubeconfig.ClientConfig()
-
-	stage := "review"
-	project := "lhr"
-	client.restconfig.TLSClientConfig.ServerName = fmt.Sprintf("api.kubernetes.%s.%s.om3.aoe.lan", stage, project)
 
 	if err != nil {
 		return nil, err
