@@ -27,20 +27,19 @@
     {{- end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
-    {{- range .Ingress }}
-        <a href="https://{{ .URL }}">{{ .URL }}</a>
-        {{- if .Alive }}<i class="material-icons mdl-color-text--red">not alive</i>{{ end }}
-        {{- if not .Alive }}<i class="material-icons mdl-color-text--green">alive</i>{{ end }}
-        <br/>
-    {{- end }}
+        <ul>
+            {{- range .Ingress }}
+                <li><a href="https://{{ .URL }}">{{ .URL }}</a></li>
+            {{- end }}
+        </ul>
     </td>
     <td class="mdl-data-table__cell--non-numeric cell-status">
     {{- if .StateReason }}{{.StateReason}}{{ end }}
     {{- if .HealthyAlsoFromIngress }}<i class="material-icons mdl-color-text--green">Public</i>{{ end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
-    {{- range .Version }}
-    {{ . }}<br/>
+    {{- range .Images }}
+        <span title="{{ .FullPath }}">{{ .Version }}</span><br/>
     {{- end }}
     </td>
 </tr>
@@ -53,7 +52,7 @@
     <th class="mdl-data-table__cell--non-numeric">{{ . }} Services</th>
     <th class="mdl-data-table__cell--non-numeric">Conditions</th>
     <th class="mdl-data-table__cell--non-numeric">Urls (Ingresses)</th>
-    <th class="mdl-data-table__cell--non-numeric cell-status">Status Reason</th>
+    <th class="mdl-data-table__cell--non-numeric cell-status">Status Info</th>
     <th class="mdl-data-table__cell--non-numeric">Version</th>
 </tr>
 {{- end -}}

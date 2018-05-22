@@ -4,6 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
@@ -181,4 +182,9 @@ func (d *DemoService) GetServices() (map[string]v1.Service, error) {
 	}
 
 	return services, nil
+}
+
+func (k *DemoService) GetJobs() (map[string]v1Batch.Job, error) {
+
+	return nil, nil
 }

@@ -3,10 +3,13 @@ package kube
 import (
 	"fmt"
 
+	"regexp"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -25,6 +28,7 @@ type (
 		GetKubernetesDeployments() (map[string]apps.Deployment, error)
 		GetIngressesByService() (map[string][]K8sIngressInfo, error)
 		GetServices() (map[string]v1.Service, error)
+		GetJobs() (map[string]v1Batch.Job, error)
 	}
 
 	KubeInfoService struct {
@@ -145,4 +149,36 @@ func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
 
 	}
 	return serviceIndex, nil
+}
+
+func (k *KubeInfoService) GetJobs() (map[string]v1Batch.Job, error) {
+
+	client, err := KubeClientFromConfig()
+
+	if err != nil {
+		return nil, err
+	}
+
+	jobsClient := client.Clientset.BatchV1().Jobs(client.Namespace)
+	jobs, err := jobsClient.List(metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	jobsIndex := make(map[string]v1Batch.Job)
+
+	for _, job := range jobs.Items {
+		//Match the jobname to appname (by deleting the last generated number for cronjobs - e.g. "akeneo-12345"  is the last created job for "akeneo")
+		applicationname := job.Name
+		reg := regexp.MustCompile("(.*)-([0-9]+)")
+		submatches := reg.FindStringSubmatch(applicationname)
+		if len(submatches) == 3 {
+			//fmt.Printf("%q\n", submatches)
+			//log.Printf("submatch %v for %v", submatches[1], applicationname)
+			applicationname = submatches[1]
+		}
+		jobsIndex[applicationname] = job
+	}
+	return jobsIndex, nil
 }

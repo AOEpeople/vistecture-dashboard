@@ -48,7 +48,7 @@ Vistecture Properties that are used:
 - `k8sDeploymentName`: Override the name of the deployment in kubernetes that is checked(default = appname)
 - `k8sHealthCheckServiceName`: Override service name that is used to check health (default = appname)
 - `k8sHealthCheckThroughIngress`: If the app should be checked from public (ingress is required for the service)
-
+- `k8sType`: set to "job" if the application is not represented by an deployment in kubernetes, but it is just a job
 
 ## Healtcheck Format:
 

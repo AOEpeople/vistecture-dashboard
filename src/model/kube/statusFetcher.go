@@ -9,10 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"strings"
+
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
 	vistectureCore "github.com/AOEpeople/vistecture/model/core"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
 type (
@@ -29,11 +32,16 @@ type (
 		State         uint
 		StateReason   string
 		Ingress       []K8sIngressInfo
-		Version       []string
+		Images        []Image
 		K8sDeployment apps.Deployment
 
 		Healthcheck            string
 		HealthyAlsoFromIngress bool
+	}
+
+	Image struct {
+		Version  string
+		FullPath string
 	}
 
 	// K8sIngressInfo holds Kubernetes Ingress Info
@@ -106,18 +114,22 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			panic("Could not get Deployment Config, check Configuration and Kubernetes Connection: " + err.Error())
 		}
 
-		// Add Ingresses to Dasboard
+		// Add Ingresses
 		ingresses, err := stm.KubeInfoService.GetIngressesByService()
-
 		if err != nil {
 			panic("Could not get Ingress Config, check Configuration and Kubernetes Connection" + err.Error())
 		}
 
-		// Add Ingresses to Dasboard
+		// Add Services
 		services, err := stm.KubeInfoService.GetServices()
-
 		if err != nil {
 			panic("Could not get Ingress Config, check Configuration and Kubernetes Connection" + err.Error())
+		}
+
+		// Add Jobs
+		jobs, err := stm.KubeInfoService.GetJobs()
+		if err != nil {
+			panic("Could not get jobs Config, check Configuration and Kubernetes Connection" + err.Error())
 		}
 
 		log.Printf("Check run #%d", tickIteration)
@@ -133,7 +145,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 				continue
 			}
 			log.Printf("Checking: %s", app.Name)
-			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses))
+			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses, jobs))
 		}
 
 		// exclusive lock map for write access
@@ -153,7 +165,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 }
 
 // checkAppStatusInKubernetes iterates through k8sDeployments and controls the result channel
-func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo) chan AppDeploymentInfo {
+func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string]v1Batch.Job) chan AppDeploymentInfo {
 	// result (like a futures)
 	res := make(chan AppDeploymentInfo, 1)
 
@@ -166,89 +178,115 @@ func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments 
 		name := app.Name
 
 		// Replace Name by configured Kubernetes Name
-		if n, ok := app.Properties["k8sDeploymentName"]; ok && n != "" {
-			name = n
-		}
-
-		depl, exists := k8sDeployments[name]
-
-		d := AppDeploymentInfo{
-			Name: name,
-		}
-
-		if !exists {
-			d.State = State_unknown
-			d.StateReason = "No deployment found"
+		if n, ok := app.Properties["k8sType"]; ok && n == "job" {
+			d := checkJob(name, app, k8sJobs)
 			res <- d
-			return
-		}
-
-		//add ingresses found for kubernetes Name
-		d.Ingress = k8sIngresses[name]
-
-		d.K8sDeployment = depl
-
-		for _, c := range depl.Spec.Template.Spec.Containers {
-			d.Version = append(d.Version, c.Image)
-		}
-
-		if !activeDeploymentExists(depl) {
-			d.State = State_failed
-			d.StateReason = "No active deployment"
+		} else {
+			d := checkDeploymentWithHealthCheck(name, app, k8sDeployments, k8sServices, k8sIngresses)
 			res <- d
-			return
 		}
-
-		//Now check the service
-		k8sHealthCheckServiceName := name
-		if h, ok := app.Properties["k8sHealthCheckServiceName"]; ok {
-			k8sHealthCheckServiceName = h
-			//Add ingresses that might exists for seperate k8sHealthCheckServiceName
-			d.Ingress = append(d.Ingress, k8sIngresses[k8sHealthCheckServiceName]...)
-		}
-		_, serviceExists := k8sServices[k8sHealthCheckServiceName]
-
-		if !serviceExists {
-			d.State = State_failed
-			d.StateReason = "Deployment has no service for healthcheck that matches the config / " + k8sHealthCheckServiceName
-			res <- d
-			return
-		}
-		if h, ok := app.Properties["healthCheckPath"]; ok {
-			d.Healthcheck = h
-		}
-		healthStatusOfService, reason := checkHealth("http://"+k8sHealthCheckServiceName, app.Properties["healthCheckPath"])
-		if !healthStatusOfService {
-			d.State = State_failed
-			d.StateReason = "Service Unhealthy: " + reason
-			res <- d
-			return
-		}
-
-		if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.State != State_failed {
-			d.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
-		}
-		//In case the application need to be checked from outside:
-		if _, ok := app.Properties["k8sHealthCheckThroughIngress"]; ok {
-			if !d.HealthyAlsoFromIngress {
-				d.State = State_failed
-				if len(k8sIngresses[k8sHealthCheckServiceName]) == 0 {
-					d.StateReason = "No Ingress for service " + k8sHealthCheckServiceName
-				} else {
-					d.StateReason = "Healthcheck from public ingress failed"
-				}
-				res <- d
-				return
-			}
-		}
-
-		d.State = State_healthy
-
-		res <- d
 
 	}(res)
 
 	return res
+}
+
+func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string]v1Batch.Job) AppDeploymentInfo {
+	_, exists := k8sJobs[name]
+
+	d := AppDeploymentInfo{
+		Name: name,
+	}
+
+	if !exists {
+		d.State = State_unknown
+		d.StateReason = "No job found"
+		return d
+	}
+	//TODO - do real heath check of the job (e.g. check last run?)
+	d.State = State_healthy
+	return d
+}
+
+func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo) AppDeploymentInfo {
+
+	// Replace Name by configured Kubernetes Name
+	if n, ok := app.Properties["k8sDeploymentName"]; ok && n != "" {
+		name = n
+	}
+
+	depl, exists := k8sDeployments[name]
+
+	d := AppDeploymentInfo{
+		Name: name,
+	}
+
+	if !exists {
+		d.State = State_unknown
+		d.StateReason = "No deployment found"
+
+		return d
+	}
+
+	//add ingresses found for kubernetes Name
+	d.Ingress = k8sIngresses[name]
+
+	d.K8sDeployment = depl
+
+	for _, c := range depl.Spec.Template.Spec.Containers {
+		d.Images = append(d.Images, buildImageStruct(c.Image))
+	}
+
+	if !activeDeploymentExists(depl) {
+		d.State = State_failed
+		d.StateReason = "No active deployment"
+		return d
+	}
+
+	//Now check the service
+	k8sHealthCheckServiceName := name
+	if h, ok := app.Properties["k8sHealthCheckServiceName"]; ok {
+		k8sHealthCheckServiceName = h
+		//Add ingresses that might exists for seperate k8sHealthCheckServiceName
+		d.Ingress = append(d.Ingress, k8sIngresses[k8sHealthCheckServiceName]...)
+	}
+	_, serviceExists := k8sServices[k8sHealthCheckServiceName]
+
+	if !serviceExists {
+		d.State = State_failed
+		d.StateReason = "Deployment has no service for healthcheck that matches the config / " + k8sHealthCheckServiceName
+		return d
+	}
+	if h, ok := app.Properties["healthCheckPath"]; ok {
+		d.Healthcheck = h
+	}
+
+	domain := k8sHealthCheckServiceName
+	healthStatusOfService, reason := checkHealth("https://"+domain, app.Properties["healthCheckPath"])
+	if !healthStatusOfService {
+		d.State = State_failed
+		d.StateReason = "Service Unhealthy: " + reason
+		return d
+	}
+
+	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.State != State_failed {
+		d.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
+	}
+	//In case the application need to be checked from outside:
+	if _, ok := app.Properties["k8sHealthCheckThroughIngress"]; ok {
+		if !d.HealthyAlsoFromIngress {
+			d.State = State_failed
+			if len(k8sIngresses[k8sHealthCheckServiceName]) == 0 {
+				d.StateReason = "No Ingress for service " + k8sHealthCheckServiceName
+			} else {
+				d.StateReason = "Healthcheck from public ingress failed"
+			}
+			return d
+		}
+	}
+
+	d.State = State_healthy
+	return d
 }
 
 func activeDeploymentExists(deployment apps.Deployment) bool {
@@ -300,7 +338,7 @@ func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string) {
 		}
 
 		if statusCode != 200 {
-			statusText := "Unhealthy: "
+			statusText := fmt.Sprintf("Status  %v for %v", statusCode, checkUrl)
 			for _, service := range jsonMap.Services {
 				if !service.Alive {
 					statusText = statusText + fmt.Sprintf("%v (%v) \n", service.Name, service.Details)
@@ -319,4 +357,19 @@ func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string) {
 
 	return true, ""
 
+}
+
+func buildImageStruct(imageUrl string) Image {
+
+	imageUrlInfos := strings.Split(imageUrl, ":")
+	version := ""
+	if len(imageUrlInfos) > 1 {
+		version = imageUrlInfos[1]
+	}
+
+	return Image{
+		FullPath: imageUrl,
+
+		Version: version,
+	}
 }

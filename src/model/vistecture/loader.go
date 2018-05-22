@@ -8,6 +8,7 @@ import (
 
 // loadProject loads the json file from a project folder
 func LoadProject(path string) *vistectureCore.Project {
+	log.Printf("Loading vistecture definition from %v", path)
 	project, err := vistectureCore.CreateProject(path)
 
 	if err != nil {
