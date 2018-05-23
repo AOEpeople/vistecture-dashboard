@@ -59,7 +59,7 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, r *http.R
 	}
 	result := statusFetcher.GetCurrentResult()
 	for _, deployment := range result {
-		switch deployment.State {
+		switch deployment.AppStateInfo.State {
 		case kube.State_unknown:
 			viewdata.Unknown = append(viewdata.Unknown, deployment)
 		case kube.State_unhealthy:

@@ -13,6 +13,7 @@ import (
 
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
 	vistectureCore "github.com/AOEpeople/vistecture/model/core"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
@@ -28,14 +29,20 @@ type (
 
 	// AppDeploymentInfo wraps Info on any Deployment's Data
 	AppDeploymentInfo struct {
-		Name          string
-		State         uint
-		StateReason   string
-		Ingress       []K8sIngressInfo
-		Images        []Image
-		K8sDeployment apps.Deployment
+		Name                string
+		Ingress             []K8sIngressInfo
+		Images              []Image
+		K8sDeployment       apps.Deployment
+		AppStateInfo        AppStateInfo
+		HealthcheckPath     string
+		ApiDocumentationUrl string
+		VistectureApp       vistectureCore.Application
+	}
 
-		Healthcheck            string
+	AppStateInfo struct {
+		State                  uint
+		StateReason            string
+		HealthCheckType        string
 		HealthyAlsoFromIngress bool
 	}
 
@@ -47,6 +54,7 @@ type (
 	// K8sIngressInfo holds Kubernetes Ingress Info
 	K8sIngressInfo struct {
 		URL   string
+		Host  string
 		Alive bool
 	}
 
@@ -70,6 +78,11 @@ const (
 	State_healthy
 	// This is the Interval for goroutine polling of kubernetes
 	refreshInterval = 15
+
+	HealthCheckType_NotCheckedYet = ""
+	HealthCheckType_SimpleCheck   = "simple"
+	HealthCheckType_HealthCheck   = "healthcheck"
+	HealthCheckType_Job           = "job"
 )
 
 func NewStatusFetcher(vistectureProjectPath string, demoMode bool) *StatusFetcher {
@@ -127,7 +140,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 		}
 
 		// Add Jobs
-		jobs, err := stm.KubeInfoService.GetJobs()
+		jobs, err := stm.KubeInfoService.GetJobsByApp()
 		if err != nil {
 			panic("Could not get jobs Config, check Configuration and Kubernetes Connection" + err.Error())
 		}
@@ -155,7 +168,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 		for _, result := range results {
 			// get result from future
 			status := <-result
-			log.Printf(".. Result: %v %v %v", status.Name, status.State, status.StateReason)
+			log.Printf(".. Result: %v %v %v", status.Name, status.AppStateInfo.State, status.AppStateInfo.StateReason)
 			stm.apps[status.Name] = status
 		}
 
@@ -165,7 +178,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 }
 
 // checkAppStatusInKubernetes iterates through k8sDeployments and controls the result channel
-func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string]v1Batch.Job) chan AppDeploymentInfo {
+func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string][]v1Batch.Job) chan AppDeploymentInfo {
 	// result (like a futures)
 	res := make(chan AppDeploymentInfo, 1)
 
@@ -191,20 +204,43 @@ func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments 
 	return res
 }
 
-func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string]v1Batch.Job) AppDeploymentInfo {
-	_, exists := k8sJobs[name]
+//TODO - support Cronjob also
+func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][]v1Batch.Job) AppDeploymentInfo {
+	jobs, exists := k8sJobs[name]
 
 	d := AppDeploymentInfo{
-		Name: name,
+		Name:          name,
+		VistectureApp: *app,
 	}
+	d.AppStateInfo.HealthCheckType = HealthCheckType_Job
 
 	if !exists {
-		d.State = State_unknown
-		d.StateReason = "No job found"
+		d.AppStateInfo.State = State_unknown
+		d.AppStateInfo.StateReason = "No job found"
 		return d
 	}
-	//TODO - do real heath check of the job (e.g. check last run?)
-	d.State = State_healthy
+
+	if h, ok := app.Properties["k8sJobPeriod"]; ok {
+		d.HealthcheckPath = h
+	}
+
+	checkJobTimeFrom := metav1.Time{
+		time.Now().Add(-10 * time.Hour),
+	}
+	for _, job := range jobs {
+		if job.Status.CompletionTime.Before(checkJobTimeFrom) {
+			//skip jobs that are too old
+			continue
+		}
+		if job.Status.Failed > 0 {
+			//one succeded job is ok
+			d.AppStateInfo.State = State_failed
+			d.AppStateInfo.StateReason = "Failed job in last 5h found: " + job.Name
+			return d
+		}
+	}
+
+	d.AppStateInfo.State = State_healthy
 	return d
 }
 
@@ -218,12 +254,13 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	depl, exists := k8sDeployments[name]
 
 	d := AppDeploymentInfo{
-		Name: name,
+		Name:          name,
+		VistectureApp: *app,
 	}
 
 	if !exists {
-		d.State = State_unknown
-		d.StateReason = "No deployment found"
+		d.AppStateInfo.State = State_unknown
+		d.AppStateInfo.StateReason = "No deployment found"
 
 		return d
 	}
@@ -238,8 +275,8 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	}
 
 	if !activeDeploymentExists(depl) {
-		d.State = State_failed
-		d.StateReason = "No active deployment"
+		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.StateReason = "No active deployment"
 		return d
 	}
 
@@ -253,44 +290,55 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	service, serviceExists := k8sServices[k8sHealthCheckServiceName]
 
 	if !serviceExists {
-		d.State = State_failed
-		d.StateReason = "Deployment has no service for healthcheck that matches the config / " + k8sHealthCheckServiceName
+		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.StateReason = "Deployment has no service for healthcheck that matches the config / " + k8sHealthCheckServiceName
 		return d
 	}
 	if len(service.Spec.Ports) < 1 {
-		d.State = State_failed
-		d.StateReason = "Service has no port.. cannot check " + k8sHealthCheckServiceName
+		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.StateReason = "Service has no port.. cannot check " + k8sHealthCheckServiceName
 		return d
 	}
+
 	if h, ok := app.Properties["healthCheckPath"]; ok {
-		d.Healthcheck = h
+		d.HealthcheckPath = h
+	}
+
+	//Add a link to apiDocPath if possible:
+	if len(k8sIngresses[name]) > 0 {
+		if apiDocPath, ok := app.Properties["apiDocPath"]; ok {
+			d.ApiDocumentationUrl = fmt.Sprintf("https://%v/%v", k8sIngresses[name][0].Host, apiDocPath)
+		}
 	}
 
 	domain := fmt.Sprintf("%v:%v", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
-	healthStatusOfService, reason := checkHealth("http://"+domain, app.Properties["healthCheckPath"])
+	healthStatusOfService, reason, healthcheckType := checkHealth("http://"+domain, app.Properties["healthCheckPath"])
+	d.AppStateInfo.HealthCheckType = healthcheckType
 	if !healthStatusOfService {
-		d.State = State_failed
-		d.StateReason = "Service Unhealthy: " + reason
+		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.StateReason = "Service Unhealthy: " + reason
 		return d
 	}
 
-	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.State != State_failed {
-		d.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
+	//Try to do the healtcheck also from (public) ingress - if an ingress exist
+	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.AppStateInfo.State != State_failed {
+		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
 	}
-	//In case the application need to be checked from outside:
+
+	//In case the application need to be checked from outside - let it fail
 	if _, ok := app.Properties["k8sHealthCheckThroughIngress"]; ok {
-		if !d.HealthyAlsoFromIngress {
-			d.State = State_failed
+		if !d.AppStateInfo.HealthyAlsoFromIngress {
+			d.AppStateInfo.State = State_failed
 			if len(k8sIngresses[k8sHealthCheckServiceName]) == 0 {
-				d.StateReason = "No Ingress for service " + k8sHealthCheckServiceName
+				d.AppStateInfo.StateReason = "No Ingress for service " + k8sHealthCheckServiceName
 			} else {
-				d.StateReason = "Healthcheck from public ingress failed"
+				d.AppStateInfo.StateReason = "HealthcheckPath from public ingress failed"
 			}
 			return d
 		}
 	}
 
-	d.State = State_healthy
+	d.AppStateInfo.State = State_healthy
 	return d
 }
 
@@ -307,7 +355,7 @@ func activeDeploymentExists(deployment apps.Deployment) bool {
 func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	for _, ing := range ingresses {
 		//At least one ingress should succeed
-		ok, _ := checkHealth("https://"+ing.URL, healtcheckPath)
+		ok, _, _ := checkHealth("https://"+ing.Host, healtcheckPath)
 		if ok {
 			return true
 		}
@@ -315,12 +363,12 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	return false
 }
 
-func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string) {
+func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string, string) {
 	checkUrl := checkBaseUrl + healtcheckPath
 	r, httpErr := http.Get(checkUrl)
 
 	if httpErr != nil {
-		return false, httpErr.Error()
+		return false, httpErr.Error(), HealthCheckType_NotCheckedYet
 	}
 
 	statusCode := r.StatusCode
@@ -334,12 +382,12 @@ func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string) {
 
 		responseBody, bodyErr := ioutil.ReadAll(r.Body)
 		if bodyErr != nil {
-			return false, "Could not read from Healthcheck"
+			return false, "Could not read from HealthcheckPath", HealthCheckType_HealthCheck
 		}
 		jsonError := json.Unmarshal(responseBody, jsonMap)
 		// Check if Response is valid
 		if jsonError != nil {
-			return false, fmt.Sprintf("Healthcheck Format Error from %s", checkUrl)
+			return false, fmt.Sprintf("HealthcheckPath Format Error from %s", checkUrl), HealthCheckType_HealthCheck
 		}
 
 		if statusCode != 200 {
@@ -349,18 +397,18 @@ func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string) {
 					statusText = statusText + fmt.Sprintf("%v (%v) \n", service.Name, service.Details)
 				}
 			}
-			return false, statusText
+			return false, statusText, HealthCheckType_HealthCheck
 		}
-		return true, ""
+		return true, "", HealthCheckType_HealthCheck
 	}
 
 	//Fallback if no healthcheck is configured
 
 	if statusCode > 500 {
-		return false, fmt.Sprintf("Fallbackcheck returns error status %v ", statusCode)
+		return false, fmt.Sprintf("Fallbackcheck returns error status %v ", statusCode), HealthCheckType_SimpleCheck
 	}
 
-	return true, ""
+	return true, "", HealthCheckType_SimpleCheck
 
 }
 

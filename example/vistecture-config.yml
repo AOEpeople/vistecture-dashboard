@@ -1,14 +1,16 @@
 ---
 projects:
-- name: "OM3 at Heathrow Airport (Heathrow Boutique)"
+- name: "Example Demo project definition"
   included-applications:
   - name: flamingo
   - name: akeneo
   - name: keycloak
+  - name: newservice
 applications:
 - name: flamingo
   title: Flamingo Core Product
   summary: Flamingo is the customer facing ecommerce frontend.
+  team: Team 1
   properties:
     deployment: kubernetes
     healthCheckPath: /healthcheck

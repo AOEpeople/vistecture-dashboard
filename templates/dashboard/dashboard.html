@@ -2,11 +2,11 @@
 {{- range . }}
 <tr>
     <td class="mdl-data-table__cell--non-numeric">
-    {{- if eq .State failed }}
+    {{- if eq .AppStateInfo.State failed }}
         <i class="material-icons mdl-color-text--red">error</i>
-    {{- else if eq .State unhealthy }}
+    {{- else if eq .AppStateInfo.State unhealthy }}
         <i class="material-icons mdl-color-text--red">warning</i>
-    {{- else if eq .State healthy }}
+    {{- else if eq .AppStateInfo.State healthy }}
         <i class="material-icons mdl-color-text--green">check_circle</i>
     {{- else }}
         <i class="material-icons mdl-color-text--blue-grey">help</i>
@@ -17,6 +17,7 @@
         <small>
             Replicas: {{ .K8sDeployment.Status.AvailableReplicas }} / {{ .K8sDeployment.Status.Replicas }}<br/>
             Revision: {{ .K8sDeployment.Status.ObservedGeneration }}<br/>
+            {{- if .VistectureApp.Team }} Team: {{ .VistectureApp.Team }}<br/>{{ end }}
         </small>
     </td>
     <td class="mdl-data-table__cell--non-numeric">
@@ -26,16 +27,18 @@
         <br/>
     {{- end }}
     </td>
-    <td class="mdl-data-table__cell--non-numeric">
+    <td class="mdl-data-table__cell--non-numeric urls">
         <ul>
             {{- range .Ingress }}
                 <li><a href="https://{{ .URL }}">{{ .URL }}</a></li>
             {{- end }}
+            {{- if .ApiDocumentationUrl }}  <li>API Doc:<a href="{{ .ApiDocumentationUrl }}">{{ .ApiDocumentationUrl }}</a></li>{{ end }}
         </ul>
     </td>
     <td class="mdl-data-table__cell--non-numeric cell-status">
-    {{- if .StateReason }}{{.StateReason}}{{ end }}
-    {{- if .HealthyAlsoFromIngress }}<i class="material-icons mdl-color-text--green">Public</i>{{ end }}
+    {{- if .AppStateInfo.StateReason }}{{.AppStateInfo.StateReason}}<br>{{ end }}
+    {{- if .AppStateInfo.HealthCheckType }} Check via: {{.AppStateInfo.HealthCheckType}}<br>{{ end }}
+    {{- if .AppStateInfo.HealthyAlsoFromIngress }}<i class="material-icons mdl-color-text--green">http</i>{{ end }}
     </td>
     <td class="mdl-data-table__cell--non-numeric">
     {{- range .Images }}
@@ -51,7 +54,7 @@
     <th class="mdl-data-table__cell--non-numeric"></th>
     <th class="mdl-data-table__cell--non-numeric">{{ . }} Services</th>
     <th class="mdl-data-table__cell--non-numeric">Conditions</th>
-    <th class="mdl-data-table__cell--non-numeric">Urls (Ingresses)</th>
+    <th class="mdl-data-table__cell--non-numeric urls">Urls (Ingresses)</th>
     <th class="mdl-data-table__cell--non-numeric cell-status">Status Info</th>
     <th class="mdl-data-table__cell--non-numeric">Version</th>
 </tr>

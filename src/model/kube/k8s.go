@@ -1,7 +1,10 @@
 package kube
 
 import (
+	"log"
 	"regexp"
+
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -26,7 +29,7 @@ type (
 		GetKubernetesDeployments() (map[string]apps.Deployment, error)
 		GetIngressesByService() (map[string][]K8sIngressInfo, error)
 		GetServices() (map[string]v1.Service, error)
-		GetJobs() (map[string]v1Batch.Job, error)
+		GetJobsByApp() (map[string][]v1Batch.Job, error)
 	}
 
 	KubeInfoService struct {
@@ -48,6 +51,7 @@ func KubeClientFromConfig() (*kubeClient, error) {
 
 	client.restconfig, err = client.kubeconfig.ClientConfig()
 
+	client.restconfig.TLSClientConfig.ServerName = fmt.Sprintf("api.kubernetes.review.lhr.om3.aoe.lan")
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +86,7 @@ func (k *KubeInfoService) GetKubernetesDeployments() (map[string]apps.Deployment
 	}
 
 	deploymentIndex := make(map[string]apps.Deployment, len(deployments.Items))
+	log.Printf("K8s: found %v deployments..\n", len(deployments.Items))
 
 	for _, deployment := range deployments.Items {
 		deploymentIndex[deployment.Name] = deployment
@@ -105,6 +110,7 @@ func (k *KubeInfoService) GetIngressesByService() (map[string][]K8sIngressInfo, 
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("K8s: found %v ingresses..\n", len(ingresses.Items))
 
 	return groupByServiceName(ingresses), nil
 }
@@ -115,7 +121,7 @@ func groupByServiceName(ingresses *extensions.IngressList) map[string][]K8sIngre
 		for _, rule := range ing.Spec.Rules {
 			for _, p := range rule.HTTP.Paths {
 				name := p.Backend.ServiceName
-				ingressIndex[name] = append(ingressIndex[name], K8sIngressInfo{URL: rule.Host + p.Path})
+				ingressIndex[name] = append(ingressIndex[name], K8sIngressInfo{URL: rule.Host + p.Path, Host: rule.Host})
 			}
 		}
 	}
@@ -138,6 +144,8 @@ func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
 	}
 
 	serviceIndex := make(map[string]v1.Service)
+	log.Printf("K8s: found %v Services..\n", len(services.Items))
+
 	for _, service := range services.Items {
 		serviceIndex[service.Name] = service
 
@@ -145,7 +153,7 @@ func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
 	return serviceIndex, nil
 }
 
-func (k *KubeInfoService) GetJobs() (map[string]v1Batch.Job, error) {
+func (k *KubeInfoService) GetJobsByApp() (map[string][]v1Batch.Job, error) {
 
 	client, err := KubeClientFromConfig()
 
@@ -160,8 +168,9 @@ func (k *KubeInfoService) GetJobs() (map[string]v1Batch.Job, error) {
 		return nil, err
 	}
 
-	jobsIndex := make(map[string]v1Batch.Job)
+	jobsIndex := make(map[string][]v1Batch.Job)
 
+	log.Printf("K8s: found %v Jobs..\n", len(jobs.Items))
 	for _, job := range jobs.Items {
 		//Match the jobname to appname (by deleting the last generated number for cronjobs - e.g. "akeneo-12345"  is the last created job for "akeneo")
 		applicationname := job.Name
@@ -172,7 +181,7 @@ func (k *KubeInfoService) GetJobs() (map[string]v1Batch.Job, error) {
 			//log.Printf("submatch %v for %v", submatches[1], applicationname)
 			applicationname = submatches[1]
 		}
-		jobsIndex[applicationname] = job
+		jobsIndex[applicationname] = append(jobsIndex[applicationname], job)
 	}
 	return jobsIndex, nil
 }

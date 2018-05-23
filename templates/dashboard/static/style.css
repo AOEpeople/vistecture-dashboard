@@ -8,6 +8,19 @@ th:first-of-type, td:first-of-type {
     width: 60px;
 }
 
+th.urls, td.urls {
+    width: 300px;
+}
+
+
+th.cell-status, td.cell-status {
+    font-size: 80%
+}
+
+td.urls ul {
+    padding-left: 0px
+}
+
 #since {
     padding: 0 2px 0 2px;
 }

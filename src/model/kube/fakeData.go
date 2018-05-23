@@ -184,7 +184,7 @@ func (d *DemoService) GetServices() (map[string]v1.Service, error) {
 	return services, nil
 }
 
-func (k *DemoService) GetJobs() (map[string]v1Batch.Job, error) {
+func (k *DemoService) GetJobsByApp() (map[string][]v1Batch.Job, error) {
 
 	return nil, nil
 }
