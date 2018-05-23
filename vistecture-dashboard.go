@@ -13,7 +13,7 @@ func main() {
 
 	d := &interfaces.DashboardController{}
 	flag.StringVar(&d.ProjectPath, "config", "../project", "Path to project config")
-	flag.StringVar(&d.Templates, "Templates", "Templates/dashboard", "Path to dashboard.html and static/ folder")
+	flag.StringVar(&d.Templates, "Templates", "templates/dashboard", "Path to dashboard.html and static/ folder")
 	flag.StringVar(&d.Listen, "Listen", ":8080", "server Listen address")
 	flag.BoolVar(&d.DemoMode, "Demo", false, "Demo mode (for templating, demo)")
 
