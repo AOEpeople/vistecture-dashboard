@@ -262,7 +262,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	}
 
 	domain := k8sHealthCheckServiceName
-	healthStatusOfService, reason := checkHealth("https://"+domain, app.Properties["healthCheckPath"])
+	healthStatusOfService, reason := checkHealth("http://"+domain, app.Properties["healthCheckPath"])
 	if !healthStatusOfService {
 		d.State = State_failed
 		d.StateReason = "Service Unhealthy: " + reason
