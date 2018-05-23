@@ -4,8 +4,6 @@ import (
 	"log"
 	"regexp"
 
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/pkg/api/v1"
@@ -51,7 +49,6 @@ func KubeClientFromConfig() (*kubeClient, error) {
 
 	client.restconfig, err = client.kubeconfig.ClientConfig()
 
-	client.restconfig.TLSClientConfig.ServerName = fmt.Sprintf("api.kubernetes.review.lhr.om3.aoe.lan")
 	if err != nil {
 		return nil, err
 	}
