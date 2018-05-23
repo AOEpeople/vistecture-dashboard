@@ -250,18 +250,23 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		//Add ingresses that might exists for seperate k8sHealthCheckServiceName
 		d.Ingress = append(d.Ingress, k8sIngresses[k8sHealthCheckServiceName]...)
 	}
-	_, serviceExists := k8sServices[k8sHealthCheckServiceName]
+	service, serviceExists := k8sServices[k8sHealthCheckServiceName]
 
 	if !serviceExists {
 		d.State = State_failed
 		d.StateReason = "Deployment has no service for healthcheck that matches the config / " + k8sHealthCheckServiceName
 		return d
 	}
+	if len(service.Spec.Ports) < 1 {
+		d.State = State_failed
+		d.StateReason = "Service has no port.. cannot check " + k8sHealthCheckServiceName
+		return d
+	}
 	if h, ok := app.Properties["healthCheckPath"]; ok {
 		d.Healthcheck = h
 	}
 
-	domain := k8sHealthCheckServiceName
+	domain := fmt.Sprintf("%v:%v", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
 	healthStatusOfService, reason := checkHealth("http://"+domain, app.Properties["healthCheckPath"])
 	if !healthStatusOfService {
 		d.State = State_failed
