@@ -75,6 +75,7 @@ const (
 	State_failed
 	State_unhealthy
 	State_healthy
+	State_unstable
 	// This is the Interval for goroutine polling of kubernetes
 	refreshInterval = 15
 
@@ -118,6 +119,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 	project := vistecture.LoadProject(stm.vistectureProjectPath)
 	definedApplications := project.Applications
 	log.Printf("Starting status fetcher for #%v apps (every %v sec)", len(definedApplications), refreshInterval)
+	lastResults := make(map[string][]AppDeploymentInfo)
 	for range time.Tick(refreshInterval * time.Second) {
 		// Add Deployments to Dashboard
 		k8sDeployments, err := stm.KubeInfoService.GetKubernetesDeployments()
@@ -168,7 +170,25 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			// get result from future
 			status := <-result
 			log.Printf(".. Result: %v %v %v", status.Name, status.AppStateInfo.State, status.AppStateInfo.StateReason)
+
+			lastResults[status.Name] = append(lastResults[status.Name], status)
+			if len(lastResults[status.Name]) > 20 {
+				//delete last if more than 20
+				lastResults[status.Name] = lastResults[status.Name][:len(lastResults[status.Name])-1]
+			}
+
+			//mark as unstable if in last 10 was a failure
+			if status.AppStateInfo.State == State_healthy {
+				for _, lastStatus := range lastResults[status.Name] {
+					if lastStatus.AppStateInfo.State == State_failed {
+						status.AppStateInfo.State = State_unstable
+						status.AppStateInfo.StateReason = "Failed check in last 20 checks"
+					}
+				}
+			}
+
 			stm.apps[status.Name] = status
+
 		}
 
 		// unlock map

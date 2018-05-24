@@ -29,8 +29,8 @@ type (
 
 	// templateData holds info for Dashboard Rendering
 	templateData struct {
-		Failed, Unhealthy, Healthy, Unknown []kube.AppDeploymentInfo
-		Now                                 time.Time
+		Failed, Unhealthy, Healthy, Unknown, Unstable []kube.AppDeploymentInfo
+		Now                                           time.Time
 	}
 )
 
@@ -68,6 +68,8 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, r *http.R
 			viewdata.Failed = append(viewdata.Failed, deployment)
 		case kube.State_healthy:
 			viewdata.Healthy = append(viewdata.Healthy, deployment)
+		case kube.State_unstable:
+			viewdata.Unstable = append(viewdata.Unstable, deployment)
 		}
 	}
 
@@ -88,6 +90,7 @@ func (d *DashboardController) renderDashboardStatus(rw http.ResponseWriter, view
 		"unhealthy": func() uint { return kube.State_unhealthy },
 		"failed":    func() uint { return kube.State_failed },
 		"healthy":   func() uint { return kube.State_healthy },
+		"unstable":  func() uint { return kube.State_unstable },
 	})
 
 	b, err := ioutil.ReadFile(path.Join(d.Templates, "dashboard.html"))

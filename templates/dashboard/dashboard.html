@@ -8,6 +8,8 @@
         <i class="material-icons mdl-color-text--red">warning</i>
     {{- else if eq .AppStateInfo.State healthy }}
         <i class="material-icons mdl-color-text--green">check_circle</i>
+    {{- else if eq .AppStateInfo.State unstable }}
+        <i class="material-icons mdl-color-text--orange">trending_flat</i>
     {{- else }}
         <i class="material-icons mdl-color-text--blue-grey">help</i>
     {{- end }}
@@ -113,6 +115,11 @@
                     {{- if len .Unknown }}
                     {{ template "tablehead" "Unknown" }}
                     {{ template "table" .Unknown }}
+                    {{- end }}
+
+                     {{- if len .Unstable }}
+                    {{ template "tablehead" "Unstable" }}
+                    {{ template "table" .Unstable }}
                     {{- end }}
                     </tbody>
                 </table>
