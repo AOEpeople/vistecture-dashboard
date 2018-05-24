@@ -180,9 +180,9 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			//mark as unstable if in last 10 was a failure
 			if status.AppStateInfo.State == State_healthy {
 				for _, lastStatus := range lastResults[status.Name] {
-					if lastStatus.AppStateInfo.State == State_failed {
+					if lastStatus.AppStateInfo.State == State_failed || lastStatus.AppStateInfo.State == State_unhealthy {
 						status.AppStateInfo.State = State_unstable
-						status.AppStateInfo.StateReason = fmt.Sprintf("Failed check in last 20 checks: %v", lastStatus.AppStateInfo.StateReason)
+						status.AppStateInfo.StateReason = fmt.Sprintf("Failed check in last 20 checks: %v / %v", lastStatus.AppStateInfo.State, lastStatus.AppStateInfo.StateReason)
 					}
 				}
 			}
@@ -359,7 +359,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 				d.AppStateInfo.StateReason = "No Ingress for service " + k8sHealthCheckServiceName
 			} else {
 				d.AppStateInfo.State = State_unhealthy
-				d.AppStateInfo.StateReason = "HealthcheckPath from public ingress failed"
+				d.AppStateInfo.StateReason = fmt.Sprintf("Calling healthcheckPath %v from public ingress failed", app.Properties["healthCheckPath"])
 			}
 			return d
 		}
