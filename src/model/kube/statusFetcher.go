@@ -182,7 +182,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 				for _, lastStatus := range lastResults[status.Name] {
 					if lastStatus.AppStateInfo.State == State_failed {
 						status.AppStateInfo.State = State_unstable
-						status.AppStateInfo.StateReason = "Failed check in last 20 checks"
+						status.AppStateInfo.StateReason = fmt.Sprintf("Failed check in last 20 checks: %v", lastStatus.AppStateInfo.StateReason)
 					}
 				}
 			}
