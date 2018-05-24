@@ -261,7 +261,7 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 
 	if lastJob.Status.Failed > 0 {
 		//one succeded job is ok
-		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Last job failed: " + lastJob.Name
 		return d
 	}
@@ -341,23 +341,24 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	healthStatusOfService, reason, healthcheckType := checkHealth("http://"+domain, app.Properties["healthCheckPath"])
 	d.AppStateInfo.HealthCheckType = healthcheckType
 	if !healthStatusOfService {
-		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Service Unhealthy: " + reason
 		return d
 	}
 
 	//Try to do the healtcheck also from (public) ingress - if an ingress exist
-	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.AppStateInfo.State != State_failed {
+	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.AppStateInfo.State == State_healthy {
 		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
 	}
 
 	//In case the application need to be checked from outside - let it fail
 	if _, ok := app.Properties["k8sHealthCheckThroughIngress"]; ok {
 		if !d.AppStateInfo.HealthyAlsoFromIngress {
-			d.AppStateInfo.State = State_failed
 			if len(k8sIngresses[k8sHealthCheckServiceName]) == 0 {
+				d.AppStateInfo.State = State_failed
 				d.AppStateInfo.StateReason = "No Ingress for service " + k8sHealthCheckServiceName
 			} else {
+				d.AppStateInfo.State = State_unhealthy
 				d.AppStateInfo.StateReason = "HealthcheckPath from public ingress failed"
 			}
 			return d

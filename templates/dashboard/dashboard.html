@@ -107,6 +107,11 @@
                     {{ template "table" .Unhealthy }}
                     {{- end }}
 
+                    {{- if len .Unstable }}
+                    {{ template "tablehead" "Unstable" }}
+                    {{ template "table" .Unstable }}
+                    {{- end }}
+
                     {{- if len .Healthy }}
                     {{ template "tablehead" "Healthy" }}
                     {{ template "table" .Healthy }}
@@ -117,10 +122,7 @@
                     {{ template "table" .Unknown }}
                     {{- end }}
 
-                     {{- if len .Unstable }}
-                    {{ template "tablehead" "Unstable" }}
-                    {{ template "table" .Unstable }}
-                    {{- end }}
+
                     </tbody>
                 </table>
             </div>
