@@ -13,7 +13,6 @@ import (
 
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
 	vistectureCore "github.com/AOEpeople/vistecture/model/core"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
@@ -220,24 +219,31 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 		return d
 	}
 
-	if h, ok := app.Properties["k8sJobPeriod"]; ok {
-		d.HealthcheckPath = h
-	}
-
-	checkJobTimeFrom := metav1.Time{
-		time.Now().Add(-10 * time.Hour),
-	}
+	var lastJob *v1Batch.Job
 	for _, job := range jobs {
-		if job.Status.CompletionTime.Before(checkJobTimeFrom) {
-			//skip jobs that are too old
+		if job.Status.CompletionTime == nil {
 			continue
 		}
-		if job.Status.Failed > 0 {
-			//one succeded job is ok
-			d.AppStateInfo.State = State_failed
-			d.AppStateInfo.StateReason = "Failed job in last 5h found: " + job.Name
-			return d
+		if lastJob == nil {
+			lastJob = &job
 		}
+		if lastJob.Status.CompletionTime.Before(*job.Status.CompletionTime) {
+			//take newer job
+			lastJob = &job
+		}
+	}
+
+	if lastJob == nil {
+		d.AppStateInfo.State = State_unknown
+		d.AppStateInfo.StateReason = "No completed job found"
+		return d
+	}
+
+	if lastJob.Status.Failed > 0 {
+		//one succeded job is ok
+		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.StateReason = "Last job failed: " + lastJob.Name
+		return d
 	}
 
 	d.AppStateInfo.State = State_healthy
