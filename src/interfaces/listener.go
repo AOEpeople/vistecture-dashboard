@@ -15,6 +15,7 @@ import (
 
 	"github.com/AOEpeople/vistecture-dashboard/src/model/kube"
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type (
@@ -44,6 +45,7 @@ func (d *DashboardController) Server() error {
 	go statusFetcher.FetchStatusInRegularInterval()
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path.Join(d.Templates, "static")))))
+	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		d.dashBoardHandler(w, r, statusFetcher)
 	})

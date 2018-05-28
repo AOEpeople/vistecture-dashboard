@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -69,6 +70,20 @@ type (
 		Details string `json:"details"`
 	}
 )
+
+var (
+	healthcheck = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "application_healthcheck_ok",
+		Help: "Application Healthcheck OK Status",
+	}, []string{
+		"application",
+	})
+)
+
+func init() {
+	// Metrics have to be registered to be exposed:
+	prometheus.MustRegister(healthcheck)
+}
 
 const (
 	State_unknown = iota
@@ -188,6 +203,12 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			}
 
 			stm.apps[status.Name] = status
+			switch status.AppStateInfo.State {
+			case State_healthy:
+				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(1)
+			default:
+				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(0)
+			}
 
 		}
 
