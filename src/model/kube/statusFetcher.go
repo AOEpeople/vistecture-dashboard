@@ -205,6 +205,8 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			stm.apps[status.Name] = status
 			switch status.AppStateInfo.State {
 			case State_healthy:
+				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(2)
+			case State_unhealthy, State_unstable:
 				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(1)
 			default:
 				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(0)
