@@ -13,10 +13,10 @@ import (
 
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
 	vistectureCore "github.com/AOEpeople/vistecture/model/core"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type (
@@ -205,11 +205,11 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			stm.apps[status.Name] = status
 			switch status.AppStateInfo.State {
 			case State_healthy:
-				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(2)
+				healthcheck.With(prometheus.Labels{"application": status.Name}).Set(2)
 			case State_unhealthy, State_unstable:
-				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(1)
+				healthcheck.With(prometheus.Labels{"application": status.Name}).Set(1)
 			default:
-				healthcheck.With(prometheus.Labels{"application":status.Name}).Set(0)
+				healthcheck.With(prometheus.Labels{"application": status.Name}).Set(0)
 			}
 
 		}
@@ -408,6 +408,7 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	var ok bool
 	for _, ing := range ingresses {
 		//At least one ingress should succeed
+		log.Printf("Check via ingress: https://%v/%v", ing.Host, healtcheckPath)
 		ok, reason, checktype = checkHealth("https://"+ing.Host, healtcheckPath)
 		if ok {
 			return true
