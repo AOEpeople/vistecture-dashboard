@@ -192,12 +192,12 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 				lastResults[status.Name] = lastResults[status.Name][:len(lastResults[status.Name])-1]
 			}
 
-			//mark as unstable if in last 10 was a failure
+			//mark as unstable if in last was a failure
 			if status.AppStateInfo.State == State_healthy {
 				for _, lastStatus := range lastResults[status.Name] {
 					if lastStatus.AppStateInfo.State == State_failed || lastStatus.AppStateInfo.State == State_unhealthy {
 						status.AppStateInfo.State = State_unstable
-						status.AppStateInfo.StateReason = fmt.Sprintf("Failed check in last 20 checks: %v / %v", lastStatus.AppStateInfo.State, lastStatus.AppStateInfo.StateReason)
+						status.AppStateInfo.StateReason = fmt.Sprintf("Failed check in last %v checks: %v / %v", len(lastResults[status.Name]), lastStatus.AppStateInfo.State, lastStatus.AppStateInfo.StateReason)
 					}
 				}
 			}
@@ -401,15 +401,19 @@ func activeDeploymentExists(deployment apps.Deployment) bool {
 	return false
 }
 
-// checkAlive calls the healthcheck of an application and returns the result
+// checkPublicHealth calls the healthcheck via public ingress
 func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
+	var reason string
+	var checktype string
+	var ok bool
 	for _, ing := range ingresses {
 		//At least one ingress should succeed
-		ok, _, _ := checkHealth("https://"+ing.Host, healtcheckPath)
+		ok, reason, checktype = checkHealth("https://"+ing.Host, healtcheckPath)
 		if ok {
 			return true
 		}
 	}
+	log.Printf("checkPublicHealth failed Reason:%v / Via:%v", reason, checktype)
 	return false
 }
 
