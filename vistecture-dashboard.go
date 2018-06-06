@@ -19,7 +19,7 @@ func main() {
 
 	flag.Parse()
 
-	http.DefaultClient.Timeout = 2 * time.Second
+	http.DefaultClient.Timeout = 10 * time.Second
 
 	err := d.Server()
 	if err != nil {
