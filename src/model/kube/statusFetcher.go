@@ -79,11 +79,21 @@ var (
 		"application",
 		"team",
 	})
+
+	healthcheck_dependencies = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "application_health_dependencies",
+		Help: "Application Healthcheck Dependencies",
+	}, []string{
+		"application",
+		"dependency",
+		"team",
+	})
 )
 
 func init() {
 	// Metrics have to be registered to be exposed:
 	prometheus.MustRegister(healthcheck)
+	prometheus.MustRegister(healthcheck_dependencies)
 }
 
 const (
@@ -364,7 +374,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	}
 
 	domain := fmt.Sprintf("%v:%v", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
-	healthStatusOfService, reason, healthcheckType := checkHealth("http://"+domain, app.Properties["healthCheckPath"])
+	healthStatusOfService, reason, healthcheckType := checkHealth(d, "http://"+domain, app.Properties["healthCheckPath"])
 	d.AppStateInfo.HealthCheckType = healthcheckType
 	if !healthStatusOfService {
 		d.AppStateInfo.State = State_unhealthy
@@ -412,7 +422,7 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	for _, ing := range ingresses {
 		//At least one ingress should succeed
 		log.Printf("Check via ingress: https://%v/%v", ing.Host, healtcheckPath)
-		ok, reason, checktype = checkHealth("https://"+ing.Host, healtcheckPath)
+		ok, reason, checktype = checkHealth(AppDeploymentInfo{}, "https://"+ing.Host, healtcheckPath)
 		if ok {
 			return true
 		}
@@ -421,7 +431,7 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	return false
 }
 
-func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string, string) {
+func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath string) (bool, string, string) {
 	checkUrl := checkBaseUrl + healtcheckPath
 	r, httpErr := http.Get(checkUrl)
 
@@ -451,8 +461,14 @@ func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string, stri
 		if statusCode != 200 {
 			statusText := fmt.Sprintf("Status  %v for %v ", statusCode, checkUrl)
 			for _, service := range jsonMap.Services {
+				s := float64(0)
 				if !service.Alive {
 					statusText = statusText + fmt.Sprintf("%v (%v) \n", service.Name, service.Details)
+					s = 1
+				}
+
+				if status.Name != "" {
+					healthcheck_dependencies.With(prometheus.Labels{"application": status.Name, "dependency": service.Name, "team": status.VistectureApp.Team}).Set(s)
 				}
 			}
 			return false, statusText, HealthCheckType_HealthCheck
