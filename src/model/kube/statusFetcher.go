@@ -73,10 +73,11 @@ type (
 
 var (
 	healthcheck = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "application_healthcheck_ok",
-		Help: "Application Healthcheck OK Status",
+		Name: "application_health_status",
+		Help: "Application Healthcheck  Status",
 	}, []string{
 		"application",
+		"team",
 	})
 )
 
@@ -205,11 +206,13 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			stm.apps[status.Name] = status
 			switch status.AppStateInfo.State {
 			case State_healthy:
-				healthcheck.With(prometheus.Labels{"application": status.Name}).Set(2)
+				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(0)
 			case State_unhealthy, State_unstable:
-				healthcheck.With(prometheus.Labels{"application": status.Name}).Set(1)
-			default:
-				healthcheck.With(prometheus.Labels{"application": status.Name}).Set(0)
+				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(2)
+			case State_failed:
+				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(3)
+			case State_unknown:
+				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(1)
 			}
 
 		}
@@ -369,8 +372,8 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		return d
 	}
 
-	//Try to do the healtcheck also from (public) ingress - if an ingress exist
-	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && d.AppStateInfo.State == State_healthy {
+	//Try to do the healtcheck also from (public) ingress - if an ingress exist and the check from service was ok
+	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && healthStatusOfService {
 		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
 	}
 
@@ -446,7 +449,7 @@ func checkHealth(checkBaseUrl string, healtcheckPath string) (bool, string, stri
 		}
 
 		if statusCode != 200 {
-			statusText := fmt.Sprintf("Status  %v for %v", statusCode, checkUrl)
+			statusText := fmt.Sprintf("Status  %v for %v ", statusCode, checkUrl)
 			for _, service := range jsonMap.Services {
 				if !service.Alive {
 					statusText = statusText + fmt.Sprintf("%v (%v) \n", service.Name, service.Details)
