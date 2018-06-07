@@ -458,22 +458,23 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 			return false, fmt.Sprintf("HealthcheckPath Format Error from %s", checkUrl), HealthCheckType_HealthCheck
 		}
 
-		if statusCode != 200 {
-			statusText := fmt.Sprintf("Status  %v for %v ", statusCode, checkUrl)
-			for _, service := range jsonMap.Services {
-				s := float64(0)
-				if !service.Alive {
-					statusText = statusText + fmt.Sprintf("%v (%v) \n", service.Name, service.Details)
-					s = 1
-				}
+		statusText := fmt.Sprintf("Status %v for %v ", statusCode, checkUrl)
+		finalStatus := true
 
-				if status.Name != "" {
-					healthcheck_dependencies.With(prometheus.Labels{"application": status.Name, "dependency": service.Name, "team": status.VistectureApp.Team}).Set(s)
-				}
+		for _, service := range jsonMap.Services {
+			s := float64(0)
+			if !service.Alive {
+				statusText += fmt.Sprintf("%v (%v) \n", service.Name, service.Details)
+				s = 1
+				finalStatus = false
 			}
-			return false, statusText, HealthCheckType_HealthCheck
+
+			if status.Name != "" {
+				healthcheck_dependencies.With(prometheus.Labels{"application": status.Name, "dependency": service.Name, "team": status.VistectureApp.Team}).Set(s)
+			}
 		}
-		return true, "", HealthCheckType_HealthCheck
+
+		return finalStatus, statusText, HealthCheckType_HealthCheck
 	}
 
 	//Fallback if no healthcheck is configured
