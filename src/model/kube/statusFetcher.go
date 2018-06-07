@@ -81,8 +81,8 @@ var (
 	})
 
 	healthcheck_dependencies = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "application_health_dependencies",
-		Help: "Application Healthcheck Dependencies",
+		Name: "application_health_dependency",
+		Help: "Application Healthcheck Dependency",
 	}, []string{
 		"application",
 		"dependency",
