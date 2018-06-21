@@ -6,10 +6,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
-
-	"strings"
 
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
 	vistectureCore "github.com/AOEpeople/vistecture/model/core"
@@ -204,14 +203,27 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 				lastResults[status.Name] = lastResults[status.Name][:20]
 			}
 
+			countRecentUnstable := 0
+			var recentIssues []string
 			//mark as unstable if in last was a failure
 			if status.AppStateInfo.State == State_healthy {
 				for _, lastStatus := range lastResults[status.Name] {
 					if lastStatus.AppStateInfo.State == State_failed || lastStatus.AppStateInfo.State == State_unhealthy {
-						status.AppStateInfo.State = State_unstable
-						status.AppStateInfo.StateReason = fmt.Sprintf("Failed check in last %v checks: %v / %v", len(lastResults[status.Name]), lastStatus.AppStateInfo.State, lastStatus.AppStateInfo.StateReason)
+						countRecentUnstable++
+						recentIssues = append(recentIssues, lastStatus.AppStateInfo.StateReason)
 					}
 				}
+			}
+
+			if countRecentUnstable > 0 {
+				status.AppStateInfo.State = State_unstable
+				status.AppStateInfo.StateReason = fmt.Sprintf(
+					"Failed %d out of %d checks in the last %d seconds\n%s",
+					countRecentUnstable,
+					len(lastResults[status.Name]),
+					len(lastResults[status.Name])*refreshInterval,
+					strings.Join(recentIssues, "\n"),
+				)
 			}
 
 			stm.apps[status.Name] = status
