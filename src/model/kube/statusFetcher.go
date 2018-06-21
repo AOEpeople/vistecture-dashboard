@@ -197,10 +197,11 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			status := <-result
 			log.Printf(".. Result: %v %v %v", status.Name, status.AppStateInfo.State, status.AppStateInfo.StateReason)
 
-			lastResults[status.Name] = append(lastResults[status.Name], status)
+			// prepend status to list of last results
+			lastResults[status.Name] = append([]AppDeploymentInfo{status}, lastResults[status.Name]...)
 			if len(lastResults[status.Name]) > 20 {
-				//delete last if more than 20
-				lastResults[status.Name] = lastResults[status.Name][:len(lastResults[status.Name])-1]
+				// limit to 20
+				lastResults[status.Name] = lastResults[status.Name][:20]
 			}
 
 			//mark as unstable if in last was a failure
