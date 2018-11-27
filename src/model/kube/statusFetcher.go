@@ -143,7 +143,6 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 	var tickIteration = 0
 	project := vistecture.LoadProject(stm.vistectureProjectPath)
 	definedApplications := project.Applications
-	log.Printf("Starting status fetcher for #%v apps (every %v sec)", len(definedApplications), refreshInterval)
 	lastResults := make(map[string][]AppDeploymentInfo)
 	for range time.Tick(refreshInterval * time.Second) {
 		// Add Deployments to Dashboard
@@ -171,7 +170,6 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			panic("Could not get jobs Config, check Configuration and Kubernetes Connection" + err.Error())
 		}
 
-		log.Printf("Check run #%d", tickIteration)
 		tickIteration++
 
 		// results is a list of channels, which get filled by the fetcher
@@ -180,10 +178,8 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 		for _, app := range definedApplications {
 			// Deployment is not on Kubernetes
 			if di, ok := app.Properties["deployment"]; !ok || di != "kubernetes" {
-				log.Printf("Skipping check for: %s (not configured as kubernetes service)", app.Name)
 				continue
 			}
-			log.Printf("Checking: %s", app.Name)
 			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses, jobs))
 		}
 
@@ -194,7 +190,6 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 		for _, result := range results {
 			// get result from future
 			status := <-result
-			log.Printf(".. Result: %v %v %v", status.Name, status.AppStateInfo.State, status.AppStateInfo.StateReason)
 
 			// prepend status to list of last results
 			lastResults[status.Name] = append([]AppDeploymentInfo{status}, lastResults[status.Name]...)
@@ -434,7 +429,6 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	var ok bool
 	for _, ing := range ingresses {
 		//At least one ingress should succeed
-		log.Printf("Check via ingress: https://%v/%v", ing.Host, healtcheckPath)
 		ok, reason, checktype = checkHealth(AppDeploymentInfo{}, "https://"+ing.Host, healtcheckPath)
 		if ok {
 			return true
