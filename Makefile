@@ -1,4 +1,4 @@
-VERSION=0.2.2
+VERSION=0.2.3
 
 dockerpublish:
 	echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
