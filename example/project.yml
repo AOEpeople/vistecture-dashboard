@@ -1,0 +1,8 @@
+---
+projectName: "Demoproject"
+appDefinitionsPaths:
+- services
+subViews:
+- name: "Demoproject minimal"
+  included-applications:
+  - flamingo

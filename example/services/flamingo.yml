@@ -1,0 +1,11 @@
+name: flamingo
+title: Flamingo Core Product
+summary: Flamingo is the customer facing ecommerce frontend.
+team: Team 1
+properties:
+  deployment: kubernetes
+  healthCheckPath: /healthcheck
+  # set this to a different name if k8s deployment name differs
+  k8sDeploymentName: flamingo
+  # set this to a different name if k8s deployment name differs
+  k8sHealthCheckServiceName: flamingo

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/AOEpeople/vistecture-dashboard/src/interfaces"
+	"github.com/AOEpeople/vistecture-dashboard/v2/src/interfaces"
 )
 
 func main() {
@@ -25,5 +25,4 @@ func main() {
 	if err != nil {
 		panic("Error while starting server: " + err.Error())
 	}
-
 }

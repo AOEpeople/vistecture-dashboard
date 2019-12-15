@@ -1,0 +1,4 @@
+name: newservice
+properties:
+  deployment: kubernetes
+  healthCheckPath: /healthcheck

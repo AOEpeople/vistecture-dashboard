@@ -1,0 +1,6 @@
+name: akeneo
+title: Flamingo Core Product
+summary: Flamingo is the customer facing ecommerce frontend.
+properties:
+  deployment: kubernetes
+  healthCheckPath: /en/status/healthcheck
