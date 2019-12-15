@@ -9,7 +9,7 @@ Works together with [Vistecture](https://github.com/aoepeople/vistecture) and sh
 
 ## Usage ##
 
-You can use the Dockerimage. `aoepeople/vistecture-dashboard`
+You can use the Dockerimage: `aoepeople/vistecture-dashboard`
 
 ### Example Project
 
@@ -18,9 +18,12 @@ docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard
 ```
 
 ### Custom Project
+Just copy your vistecture definitions into /vistecture/project.yml
+
+The following Dockerfile could be used to build an image running the dashboard for your defined architecture:
 
 ```dockerfile
-FROM aoepeople/vistecture-dashboard
+FROM aoepeople/vistecture-dashboard:2.1.0
 
 COPY definition /definition
 
@@ -37,6 +40,32 @@ The following "Properties" are used to control dashboard behaviour
 - `k8sHealthCheckServiceName`: Override service name that is used to check health (default = appname)
 - `k8sHealthCheckThroughIngress`: If the app should be checked from public (ingress is required for the service)
 - `k8sType`: set to "job" if the application is not represented by an deployment in kubernetes, but it is just a job
+
+### Healtcheck Format:
+
+If a Healthcheck path is configured for the application the following format is evaluated:
+
+```json
+{
+"services": [
+    {
+        "name": "session",
+        "alive": true,
+        "details": "success"
+    },
+    {
+        "name": "magento",
+        "alive": true,
+        "details": "magento is alive"
+    },
+    {
+        "name": "om3oms-rabbitMQ-publisher",
+        "alive": false,
+        "details": "dial tcp [::1]:5672: connect: connection refused"
+    }
+]
+}
+```
 
 ## Development: ##
 
