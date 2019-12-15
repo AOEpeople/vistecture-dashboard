@@ -11,10 +11,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"k8s.io/client-go/kubernetes"
-	//v1 "k8s.io/client-go/pkg/api/v1"
-	//apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
-	//v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
-	//extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
