@@ -303,7 +303,7 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 		return d
 	}
 
-	if lastJob.Status.Succeeded == 0 {
+	if lastJob.Status.Succeeded == 0 && lastJob.Status.Failed > 0 {
 		//one succeded job is ok
 		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Last job failed: " + lastJob.Name
