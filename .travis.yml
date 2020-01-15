@@ -1,4 +1,16 @@
 language: go
 
 go:
-  - 1.8
+  - 1.13
+
+script:
+  - go build -o vistecture-dashboard
+  - docker build -t aoepeople/vistecture-dashboard:latest .
+  - docker tag aoepeople/vistecture-dashboard:latest  aoepeople/vistecture-dashboard:3.1.$VERSION
+
+# go build -o vistecture-dashboard
+# docker build -t aoepeople/vistecture-dashboard:latest .
+# docker tag aoepeople/vistecture-dashboard:latest  aoepeople/vistecture-dashboard:3.1.$VERSION
+# docker push aoepeople/vistecture-dashboard:latest
+# docker push aoepeople/vistecture-dashboard:3.1.$VERSION
+# VERSION muss die pipeline nummer sein

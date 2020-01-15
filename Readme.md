@@ -16,13 +16,7 @@ Example Project Dockerfile
 ```dockerfile
 FROM aoepeople/vistecture-dashboard
 
-COPY definition /go/src/github.com/AOEpeople/project
-
-EXPOSE 8080
-
-CMD ["vistecture-dashboard"]
-
-WORKDIR /go/src/github.com/AOEpeople/vistecture-dashboard/
+COPY definition/vistecture-config.yml /project.yml
 ```
 
 ### Vistecture Properties that are used:
@@ -45,21 +39,23 @@ The following "Properties" are used to control dashboard behaviour
 ## Development: ##
 
 ```
-# install dep
-go get -u github.com/golang/dep/cmd/dep
-
-# get dependencies
-dep ensure
-
 # run
 go run vistecture-dashboard.go
 ```
 
 For a demo display please use:
 ```
-go run vistecture-dashboard.go -config=example/vistecture-config.yml -Demo=1
+go run vistecture-dashboard.go -config=example/definition/vistecture-config.yml -Demo=1
 ```
-
+or with Docker:
+- delete the comment character of the line `CMD ["-Demo"]` in the Dockerfile: /example/Dockerfile
+- then execute the following commands:
+```
+docker build -t aoepeople/vistecture-dashboard .
+cd example
+docker build -t vis .
+docker run --rm -p8080:8080 --name test vis
+```
 
 And access it via http://localhost:8080
 
