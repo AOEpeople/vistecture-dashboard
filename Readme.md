@@ -9,12 +9,12 @@ Works together with [Vistecture](https://github.com/aoepeople/vistecture) and sh
 
 ## Usage ##
 
-You can use the Dockerimage: `aoepeople/vistecture-dashboard`
+You can use the Dockerimage: `aoepeople/vistecture-dashboard:2.1.0`
 
 ### Example Project
 
 ```
-docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard
+docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard:2.1.0
 ```
 
 ### Custom Project
@@ -26,8 +26,7 @@ The following Dockerfile could be used to build an image running the dashboard f
 FROM aoepeople/vistecture-dashboard:2.1.0
 
 COPY definition /definition
-
-CMD ["-config", "/definition"]
+CMD ["-config", "/definition/project.yml"]
 ```
 
 ### Vistecture Properties that are used:
@@ -76,7 +75,7 @@ go run vistecture-dashboard.go
 
 For a demo display please use:
 ```
-go run vistecture-dashboard.go -config=example -Demo
+go run vistecture-dashboard.go -config=example/project.yml -Demo
 ```
 
 And access it via http://localhost:8080
