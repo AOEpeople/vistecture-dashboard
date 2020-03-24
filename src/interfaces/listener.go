@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -10,8 +11,6 @@ import (
 	"path"
 	"sort"
 	"time"
-
-	"fmt"
 
 	"github.com/AOEpeople/vistecture-dashboard/src/model/kube"
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"

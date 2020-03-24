@@ -13,7 +13,7 @@ import (
 	"github.com/AOEpeople/vistecture-dashboard/src/model/vistecture"
 	vistectureCore "github.com/AOEpeople/vistecture/model/core"
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/client-go/pkg/api/v1"
+	v1 "k8s.io/client-go/pkg/api/v1"
 	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	v1Batch "k8s.io/client-go/pkg/apis/batch/v1"
 )
@@ -144,7 +144,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 	project := vistecture.LoadProject(stm.vistectureProjectPath)
 	definedApplications := project.Applications
 	lastResults := make(map[string][]AppDeploymentInfo)
-	for range time.Tick(refreshInterval * time.Second) {
+	fetcher := func() {
 		// Add Deployments to Dashboard
 		k8sDeployments, err := stm.KubeInfoService.GetKubernetesDeployments()
 
@@ -237,6 +237,11 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 
 		// unlock map
 		stm.mu.Unlock()
+	}
+
+	fetcher()
+	for range time.Tick(refreshInterval * time.Second) {
+		fetcher()
 	}
 }
 

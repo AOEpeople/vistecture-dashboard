@@ -1,7 +1,16 @@
-VERSION=0.2.3
+VERSION=0.3.0
 
-dockerpublish:
-	echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
-	docker build --no-cache -t aoepeople/vistecture-dashboard .
+.PHONY: docker dockerpublish test
+
+default: test
+
+test:
+	go test -vet=all ./...
+
+docker:
+	docker build -t aoepeople/vistecture-dashboard .
+
+dockerpublish: docker
 	docker tag aoepeople/vistecture-dashboard:latest aoepeople/vistecture-dashboard:$(VERSION)
-	docker push aoepeople/vistecture-dashboard
+	docker push aoepeople/vistecture-dashboard:latest
+	docker push aoepeople/vistecture-dashboard:$(VERSION)
