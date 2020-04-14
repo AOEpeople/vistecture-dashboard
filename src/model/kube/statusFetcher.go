@@ -69,6 +69,8 @@ type (
 	}
 )
 
+var healthCheckUserAgent = "VistectureDashboard"
+
 var (
 	healthcheck = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "application_health_status",
@@ -443,7 +445,16 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 
 func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath string) (bool, string, string) {
 	checkUrl := checkBaseUrl + healtcheckPath
-	r, httpErr := http.Get(checkUrl)
+
+	client := &http.Client{}
+
+	req, reqErr := http.NewRequest("GET", checkUrl, nil)
+	if reqErr != nil {
+		return false, reqErr.Error(), HealthCheckType_NotCheckedYet
+	}
+
+	req.Header.Add("user-agent", healthCheckUserAgent)
+	r, httpErr := client.Do(req)
 
 	if httpErr != nil {
 		return false, httpErr.Error(), HealthCheckType_NotCheckedYet
