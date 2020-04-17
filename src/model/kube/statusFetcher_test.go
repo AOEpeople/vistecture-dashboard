@@ -22,7 +22,8 @@ func TestCheckHealth_UnhealthyService(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("{\"services\": [{\"name\": \"dummy\", \"alive\": false, \"details\": \"dummy\"}]}"))
 	}))
-
+	defer server.Close()
+	
 	healthStatusOfService, _, _ := checkHealth(AppDeploymentInfo{}, server.URL, "/nonexistingpath")
 	if healthStatusOfService {
 		t.Errorf("healthStatusOfService should be false")
