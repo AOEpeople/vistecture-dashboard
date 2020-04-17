@@ -30,3 +30,21 @@ func TestCheckHealth_UnhealthyService(t *testing.T) {
 		t.Errorf("healthStatusOfService should be false")
 	}
 }
+
+func TestCheckHealth_UserAgentIsSet(t *testing.T) {
+	expectedUA := "VistectureDashboard"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ua := r.Header.Get("User-Agent")
+		if ua != expectedUA {
+			w.WriteHeader(500)
+			t.Errorf("expected user-agent to be '%s' but was '%s'", expectedUA, ua)
+		} else {
+			w.WriteHeader(200)
+		}
+	}))
+
+	healthStatusOfService, _, _ := checkHealth(AppDeploymentInfo{}, server.URL, "/")
+	if healthStatusOfService {
+		t.Errorf("user-agent assertion failed")
+	}
+}
