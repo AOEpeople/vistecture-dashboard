@@ -453,7 +453,7 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 		return false, reqErr.Error(), HealthCheckType_NotCheckedYet
 	}
 
-	req.Header.Add("user-agent", healthCheckUserAgent)
+	req.Header.Set("User-Agent", healthCheckUserAgent)
 	r, httpErr := client.Do(req)
 
 	if httpErr != nil {
