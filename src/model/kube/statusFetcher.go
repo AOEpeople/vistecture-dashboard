@@ -69,7 +69,7 @@ type (
 	}
 )
 
-var healthCheckUserAgent = "VistectureDashboard"
+const healthCheckUserAgent = "VistectureDashboard"
 
 var (
 	healthcheck = prometheus.NewGaugeVec(prometheus.GaugeOpts{
