@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCheckHealth_AllHealty(t *testing.T) {
+func TestCheckHealth_AllHealthy(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("{\"services\": []}"))
 
