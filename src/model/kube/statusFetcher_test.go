@@ -11,7 +11,8 @@ func TestCheckHealth_AllHealthy(t *testing.T) {
 		w.Write([]byte("{\"services\": []}"))
 
 	}))
-
+	defer server.Close()
+	
 	healthStatusOfService, reason, _ := checkHealth(AppDeploymentInfo{}, server.URL, "/")
 	if !healthStatusOfService {
 		t.Errorf("healthStatusOfService should be true %v", reason)
