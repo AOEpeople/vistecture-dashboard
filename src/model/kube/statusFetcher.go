@@ -88,12 +88,16 @@ var (
 		"dependency",
 		"team",
 	})
+
+	httpClient = &http.Client{}
 )
 
 func init() {
 	// Metrics have to be registered to be exposed:
 	prometheus.MustRegister(healthcheck)
 	prometheus.MustRegister(healthcheck_dependencies)
+
+	httpClient.Timeout = 15 * time.Second
 }
 
 const (
@@ -446,15 +450,13 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath string) (bool, string, string) {
 	checkUrl := checkBaseUrl + healtcheckPath
 
-	client := &http.Client{}
-
 	req, reqErr := http.NewRequest("GET", checkUrl, nil)
 	if reqErr != nil {
 		return false, reqErr.Error(), HealthCheckType_NotCheckedYet
 	}
 
 	req.Header.Set("User-Agent", healthCheckUserAgent)
-	r, httpErr := client.Do(req)
+	r, httpErr := httpClient.Do(req)
 
 	if httpErr != nil {
 		return false, httpErr.Error(), HealthCheckType_NotCheckedYet
