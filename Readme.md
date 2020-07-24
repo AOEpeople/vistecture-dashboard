@@ -6,18 +6,18 @@ Works together with [Vistecture](https://github.com/aoepeople/vistecture) and sh
 
 ![Vistecture_Dashboard](screenshot.jpg)
 
-
-## Usage ##
+## Usage
 
 You can use the Dockerimage: `aoepeople/vistecture-dashboard:2.1.3`
 
 ### Example Project
 
-```
+```bash
 docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard:2.1.3
 ```
 
 ### Custom Project
+
 Just copy your vistecture definitions into /vistecture/project.yml
 
 The following Dockerfile could be used to build an image running the dashboard for your defined architecture:
@@ -29,9 +29,11 @@ COPY definition /definition
 CMD ["-config", "/definition/project.yml"]
 ```
 
-### Vistecture Properties that are used:
+### Vistecture Properties that are used
+
 The following "Properties" are used to control dashboard behaviour
 (See example folder for an example)
+
 - `deployment`: Has to be set to `kubernetes` (otherwise app is not checked)
 - `healthCheckPath`: Healthcheck endpoint (relative path) (Optional - if not set just the base url is called) - If a healthCheckPath is configured it need to match the defined format (see below)
 - `apiDocPath`: Optional the relative path to an API spec (just used to show a link)
@@ -40,7 +42,7 @@ The following "Properties" are used to control dashboard behaviour
 - `k8sHealthCheckThroughIngress`: If the app should be checked from public (ingress is required for the service)
 - `k8sType`: set to "job" if the application is not represented by an deployment in kubernetes, but it is just a job
 
-### Healtcheck Format:
+### Healtcheck Format
 
 If a Healthcheck path is configured for the application the following format is evaluated:
 
@@ -66,15 +68,17 @@ If a Healthcheck path is configured for the application the following format is 
 }
 ```
 
-## Development: ##
+## Development
 
-```
+```bash
+
 # run
 go run vistecture-dashboard.go
 ```
 
 For a demo display please use:
-```
+
+```bash
 go run vistecture-dashboard.go -config=example/project.yml -Demo
 ```
 
