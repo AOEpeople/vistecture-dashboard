@@ -1,14 +1,14 @@
 package kube
 
 import (
-	"log"
 	"regexp"
 
+	log "github.com/sirupsen/logrus"
+	apps "k8s.io/api/apps/v1"
 	v1Batch "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -84,7 +84,7 @@ func (k *KubeInfoService) GetKubernetesDeployments() (map[string]apps.Deployment
 	}
 
 	deploymentIndex := make(map[string]apps.Deployment, len(deployments.Items))
-	log.Printf("K8s: found %v deployments..\n", len(deployments.Items))
+	log.Infof("K8s: found %v deployments..\n", len(deployments.Items))
 
 	for _, deployment := range deployments.Items {
 		deploymentIndex[deployment.Name] = deployment
@@ -108,7 +108,7 @@ func (k *KubeInfoService) GetIngressesByService() (map[string][]K8sIngressInfo, 
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("K8s: found %v ingresses..\n", len(ingresses.Items))
+	log.Infof("K8s: found %v ingresses..\n", len(ingresses.Items))
 
 	return groupByServiceName(ingresses), nil
 }
@@ -142,7 +142,7 @@ func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
 	}
 
 	serviceIndex := make(map[string]v1.Service)
-	log.Printf("K8s: found %v Services..\n", len(services.Items))
+	log.Infof("K8s: found %v Services..\n", len(services.Items))
 
 	for _, service := range services.Items {
 		serviceIndex[service.Name] = service
@@ -168,7 +168,7 @@ func (k *KubeInfoService) GetJobsByApp() (map[string][]v1Batch.Job, error) {
 
 	jobsIndex := make(map[string][]v1Batch.Job)
 
-	log.Printf("K8s: found %v Jobs..\n", len(jobs.Items))
+	log.Infof("K8s: found %v Jobs..\n", len(jobs.Items))
 	for _, job := range jobs.Items {
 		//Match the jobname to appname (by deleting the last generated number for cronjobs - e.g. "akeneo-12345"  is the last created job for "akeneo")
 		applicationname := job.Name

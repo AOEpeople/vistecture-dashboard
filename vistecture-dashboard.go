@@ -15,6 +15,8 @@ func main() {
 	flag.StringVar(&d.ProjectPath, "config", "example/project.yml", "Path to project config")
 	flag.StringVar(&d.Templates, "Templates", "templates/dashboard", "Path to dashboard.html and static/ folder")
 	flag.StringVar(&d.Listen, "Listen", ":8080", "server Listen address")
+	flag.StringVar(&d.LogFormat, "logformat", "plain", "logformat plain|json")
+	flag.StringVar(&d.LogLevel, "loglevel", "warn", "fatal|error|warn|info|debug|trace")
 	flag.BoolVar(&d.DemoMode, "Demo", false, "Demo mode (for templating, demo)")
 
 	flag.Parse()
