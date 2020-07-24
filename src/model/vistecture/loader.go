@@ -1,11 +1,12 @@
 package vistecture
 
 import (
-	"log"
 	"path"
 
-	vistectureCore "github.com/AOEpeople/vistecture/v2/model/core"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/AOEpeople/vistecture/v2/application"
+	vistectureCore "github.com/AOEpeople/vistecture/v2/model/core"
 )
 
 // loadProject loads the json file from a project folder
@@ -22,6 +23,6 @@ func LoadProject(projectConfigFile string) *vistectureCore.Project {
 		log.Fatal("Project JSON is not valid:", err)
 		panic(err)
 	}
-	log.Printf("Loaded %v apps for project %v", len(completeProject.Applications),definitions.ProjectName)
+	log.Infof("Loaded %v apps for project %v", len(completeProject.Applications), definitions.ProjectName)
 	return completeProject
 }

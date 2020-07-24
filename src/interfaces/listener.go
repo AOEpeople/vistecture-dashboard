@@ -6,11 +6,12 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path"
 	"sort"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/AOEpeople/vistecture-dashboard/v2/src/model/kube"
 	"github.com/AOEpeople/vistecture-dashboard/v2/src/model/vistecture"
@@ -23,6 +24,8 @@ type (
 		Templates   string
 		Listen      string
 		DemoMode    bool
+		LogFormat   string
+		LogLevel    string
 	}
 
 	ByName []kube.AppDeploymentInfo
@@ -34,8 +37,34 @@ type (
 	}
 )
 
+func (d *DashboardController) initLogger() {
+	if d.LogFormat == "json" {
+		log.SetFormatter(&log.JSONFormatter{})
+	}
+
+	if d.LogLevel == "fatal" {
+		log.SetLevel(log.FatalLevel)
+	}
+	if d.LogLevel == "error" {
+		log.SetLevel(log.ErrorLevel)
+	}
+	if d.LogLevel == "warn" {
+		log.SetLevel(log.WarnLevel)
+	}
+	if d.LogLevel == "info" {
+		log.SetLevel(log.InfoLevel)
+	}
+	if d.LogLevel == "debug" {
+		log.SetLevel(log.DebugLevel)
+	}
+	if d.LogLevel == "trace" {
+		log.SetLevel(log.TraceLevel)
+	}
+}
+
 // Server defines controller actions
 func (d *DashboardController) Server() error {
+	d.initLogger()
 	//load once (will panic before we start listen)
 	project := vistecture.LoadProject(d.ProjectPath)
 
@@ -49,7 +78,7 @@ func (d *DashboardController) Server() error {
 		d.dashBoardHandler(w, r, statusFetcher)
 	})
 
-	log.Println("Listening on http://" + d.Listen + "/")
+	log.Infoln("Listening on http://" + d.Listen + "/")
 	return http.ListenAndServe(d.Listen, nil)
 }
 

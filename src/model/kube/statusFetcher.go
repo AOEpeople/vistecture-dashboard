@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -12,6 +11,7 @@ import (
 
 	vistectureCore "github.com/AOEpeople/vistecture/v2/model/core"
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 	apps "k8s.io/api/apps/v1"
 	v1Batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -145,9 +145,11 @@ func (stm *StatusFetcher) GetCurrentResult() map[string]AppDeploymentInfo {
 
 // fetchStatusInRegularInterval controls the interval in which new info is fetched and loops over configured applications
 func (stm *StatusFetcher) FetchStatusInRegularInterval() {
+	log.Infof("FetchStatusInRegularInterval")
 	var tickIteration = 0
 	lastResults := make(map[string][]AppDeploymentInfo)
 	fetcher := func() {
+		log.Infof("FetchStatusInRegularInterval:fetcher")
 		// Add Deployments to Dashboard
 		k8sDeployments, err := stm.KubeInfoService.GetKubernetesDeployments()
 
@@ -443,7 +445,7 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 			return true
 		}
 	}
-	log.Printf("checkPublicHealth failed Reason:%v / Via:%v", reason, checktype)
+	log.Infof("checkPublicHealth failed Reason:%v / Via:%v", reason, checktype)
 	return false
 }
 
@@ -455,6 +457,7 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 		return false, reqErr.Error(), HealthCheckType_NotCheckedYet
 	}
 
+	log.Debugf("Checking url %v/%v for application %s", checkBaseUrl, healtcheckPath, status.Name)
 	req.Header.Set("User-Agent", healthCheckUserAgent)
 	r, httpErr := httpClient.Do(req)
 
