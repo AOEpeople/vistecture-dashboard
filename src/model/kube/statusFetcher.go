@@ -353,6 +353,12 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		d.Images = append(d.Images, buildImageStruct(c.Image))
 	}
 
+	if isDeploymentProgressing(depl) {
+		d.AppStateInfo.State = State_healthy
+		d.AppStateInfo.StateReason = "Deployment is progressing, skipping healthcheck"
+		return d
+	}
+
 	if !activeDeploymentExists(depl) {
 		d.AppStateInfo.State = State_failed
 		d.AppStateInfo.StateReason = "No active deployment"
@@ -425,6 +431,15 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 func activeDeploymentExists(deployment apps.Deployment) bool {
 	for _, c := range deployment.Status.Conditions {
 		if c.Type == apps.DeploymentAvailable && c.Status == v1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+func isDeploymentProgressing(deployment apps.Deployment) bool {
+	for _, c := range deployment.Status.Conditions {
+		if c.Type == apps.DeploymentProgressing && c.Status == v1.ConditionTrue {
 			return true
 		}
 	}
