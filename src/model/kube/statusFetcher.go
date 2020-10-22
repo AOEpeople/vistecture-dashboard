@@ -354,8 +354,8 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	}
 
 	if !activeDeploymentExists(depl) {
-		d.AppStateInfo.State = State_healthy
-		d.AppStateInfo.StateReason = "No active deployment, skipping healthcheck"
+		d.AppStateInfo.State = State_failed
+		d.AppStateInfo.StateReason = "No active deployment"
 		return d
 	}
 
@@ -423,12 +423,10 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 }
 
 func activeDeploymentExists(deployment apps.Deployment) bool {
-	for _, c := range deployment.Status.Conditions {
-		if c.Type == apps.DeploymentAvailable && c.Status == v1.ConditionTrue {
-			return true
-		}
+	if deployment.Status.AvailableReplicas == 0 {
+		return false
 	}
-	return false
+	return true
 }
 
 // checkPublicHealth calls the healthcheck via public ingress

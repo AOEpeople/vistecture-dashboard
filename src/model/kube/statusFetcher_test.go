@@ -1,6 +1,7 @@
 package kube
 
 import (
+	apps "k8s.io/api/apps/v1"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,5 +48,37 @@ func TestCheckHealth_UserAgentIsSet(t *testing.T) {
 	healthStatusOfService, _, _ := checkHealth(AppDeploymentInfo{}, server.URL, "/")
 	if healthStatusOfService {
 		t.Errorf("user-agent assertion failed")
+	}
+}
+
+func TestDeploymentExists(t *testing.T) {
+	testCases := []struct {
+		currentReplicas  int32
+		deploymentExists bool
+	}{
+		{
+			0,
+			false,
+		},
+		{
+			1,
+			true,
+		},
+		{
+			3,
+			true,
+		},
+	}
+
+	for i, testCase := range testCases {
+		deployment := apps.Deployment{
+			Status: apps.DeploymentStatus{
+				AvailableReplicas: testCase.currentReplicas,
+			},
+		}
+		deploymentExists := activeDeploymentExists(deployment)
+		if deploymentExists != testCase.deploymentExists {
+			t.Errorf("case #%d with current replicas %d expected deploymentExists to be %t, found %t", i+1, testCase.currentReplicas, testCase.deploymentExists, deploymentExists)
+		}
 	}
 }
