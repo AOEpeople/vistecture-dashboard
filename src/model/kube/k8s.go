@@ -3,12 +3,13 @@ package kube
 import (
 	"log"
 	"regexp"
+	"sort"
 
+	apps "k8s.io/api/apps/v1"
 	v1Batch "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -119,9 +120,18 @@ func groupByServiceName(ingresses *extensions.IngressList) map[string][]K8sIngre
 		for _, rule := range ing.Spec.Rules {
 			for _, p := range rule.HTTP.Paths {
 				name := p.Backend.ServiceName
-				ingressIndex[name] = append(ingressIndex[name], K8sIngressInfo{URL: rule.Host + p.Path, Host: rule.Host})
+				ingressIndex[name] = append(ingressIndex[name], K8sIngressInfo{URL: rule.Host + p.Path, Host: rule.Host, Path: p.Path})
 			}
 		}
+	}
+
+	// sort the available ingresses for an application by their path's length
+	// => prefer direct path ingresses
+	for name, ingresses := range ingressIndex {
+		sort.Slice(ingresses, func(i, j int) bool {
+			return len(ingresses[i].Path) < len(ingresses[j].Path)
+		})
+		ingressIndex[name] = ingresses
 	}
 	return ingressIndex
 }

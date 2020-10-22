@@ -53,6 +53,7 @@ type (
 	K8sIngressInfo struct {
 		URL   string
 		Host  string
+		Path  string
 		Alive bool
 	}
 
