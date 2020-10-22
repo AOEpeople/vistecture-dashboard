@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -183,6 +184,10 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			if di, ok := app.Properties["deployment"]; !ok || di != "kubernetes" {
 				continue
 			}
+			// wait a bit between healthchecks to not do them all at once
+			millisecondsToWait := rand.Intn(700) + 300
+			time.Sleep(time.Millisecond * time.Duration(millisecondsToWait))
+
 			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses, jobs))
 		}
 
@@ -255,10 +260,6 @@ func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments 
 
 	// start fetcher routing
 	go func(res chan AppDeploymentInfo) {
-
-		// simulate status fetch
-		time.Sleep(time.Second * 1)
-
 		name := app.Name
 
 		// Replace Name by configured Kubernetes Name
