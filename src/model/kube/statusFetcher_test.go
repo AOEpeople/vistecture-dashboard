@@ -51,10 +51,10 @@ func TestCheckHealth_UserAgentIsSet(t *testing.T) {
 	}
 }
 
-func TestDeploymentExists(t *testing.T) {
+func TestPodExists(t *testing.T) {
 	testCases := []struct {
-		currentReplicas  int32
-		deploymentExists bool
+		currentReplicas int32
+		podExists       bool
 	}{
 		{
 			0,
@@ -76,9 +76,9 @@ func TestDeploymentExists(t *testing.T) {
 				AvailableReplicas: testCase.currentReplicas,
 			},
 		}
-		deploymentExists := activeDeploymentExists(deployment)
-		if deploymentExists != testCase.deploymentExists {
-			t.Errorf("case #%d with current replicas %d expected deploymentExists to be %t, found %t", i+1, testCase.currentReplicas, testCase.deploymentExists, deploymentExists)
+		podExists := podExists(deployment)
+		if podExists != testCase.podExists {
+			t.Errorf("case #%d with current replicas %d expected podExists to be %t, found %t", i+1, testCase.currentReplicas, testCase.podExists, podExists)
 		}
 	}
 }

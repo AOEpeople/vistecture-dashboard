@@ -353,9 +353,9 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		d.Images = append(d.Images, buildImageStruct(c.Image))
 	}
 
-	if !activeDeploymentExists(depl) {
+	if !podExists(depl) {
 		d.AppStateInfo.State = State_failed
-		d.AppStateInfo.StateReason = "No active deployment"
+		d.AppStateInfo.StateReason = "No pod available"
 		return d
 	}
 
@@ -422,7 +422,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	return d
 }
 
-func activeDeploymentExists(deployment apps.Deployment) bool {
+func podExists(deployment apps.Deployment) bool {
 	if deployment.Status.AvailableReplicas == 0 {
 		return false
 	}
