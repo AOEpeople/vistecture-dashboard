@@ -82,7 +82,7 @@ var (
 		"team",
 	})
 
-	healthcheck_dependencies = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	healthcheckDependencies = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "application_health_dependency",
 		Help: "Application Healthcheck Dependency",
 	}, []string{
@@ -97,7 +97,7 @@ var (
 func init() {
 	// Metrics have to be registered to be exposed:
 	prometheus.MustRegister(healthcheck)
-	prometheus.MustRegister(healthcheck_dependencies)
+	prometheus.MustRegister(healthcheckDependencies)
 
 	httpClient.Timeout = 15 * time.Second
 }
@@ -145,7 +145,7 @@ func (stm *StatusFetcher) GetCurrentResult() map[string]AppDeploymentInfo {
 	return result
 }
 
-// fetchStatusInRegularInterval controls the interval in which new info is fetched and loops over configured applications
+// FetchStatusInRegularInterval controls the interval in which new info is fetched and loops over configured applications
 func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 	var tickIteration = 0
 	lastResults := make(map[string][]AppDeploymentInfo)
@@ -209,7 +209,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 
 			countRecentUnstable := 0
 			var recentIssues []string
-			//mark as unstable if in last was a failure
+			// mark as unstable if in last was a failure
 			if status.AppStateInfo.State == State_healthy {
 				for _, lastStatus := range lastResults[status.Name] {
 					if lastStatus.AppStateInfo.State == State_failed || lastStatus.AppStateInfo.State == State_unhealthy {
@@ -277,7 +277,7 @@ func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments 
 	return res
 }
 
-//TODO - support Cronjob also
+// TODO - support Cronjob also
 func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][]v1Batch.Job) AppDeploymentInfo {
 	jobs, exists := k8sJobs[name]
 
@@ -303,7 +303,7 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 		}
 
 		if lastJob.Status.CompletionTime.Before(job.Status.CompletionTime) {
-			//take newer job
+			// take newer job
 			lastJob = &job
 		}
 	}
@@ -315,7 +315,7 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 	}
 
 	if lastJob.Status.Succeeded == 0 && lastJob.Status.Failed > 0 {
-		//one succeded job is ok
+		// one succeded job is ok
 		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Last job failed: " + lastJob.Name
 		return d
@@ -346,7 +346,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		return d
 	}
 
-	//add ingresses found for kubernetes Name
+	// add ingresses found for kubernetes Name
 	d.Ingress = k8sIngresses[name]
 
 	d.K8sDeployment = depl
@@ -361,11 +361,11 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		return d
 	}
 
-	//Now check the service
+	// Now check the service
 	k8sHealthCheckServiceName := name
 	if h, ok := app.Properties["k8sHealthCheckServiceName"]; ok {
 		k8sHealthCheckServiceName = h
-		//Add ingresses that might exists for seperate k8sHealthCheckServiceName
+		// Add ingresses that might exists for seperate k8sHealthCheckServiceName
 		d.Ingress = append(d.Ingress, k8sIngresses[k8sHealthCheckServiceName]...)
 	}
 	service, serviceExists := k8sServices[k8sHealthCheckServiceName]
@@ -385,7 +385,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		d.HealthcheckPath = h
 	}
 
-	//Add a link to apiDocPath if possible:
+	// Add a link to apiDocPath if possible:
 	if len(k8sIngresses[name]) > 0 {
 		if apiDocPath, ok := app.Properties["apiDocPath"]; ok {
 			d.ApiDocumentationUrl = fmt.Sprintf("https://%v/%v", k8sIngresses[name][0].Host, apiDocPath)
@@ -401,12 +401,12 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		return d
 	}
 
-	//Try to do the healtcheck also from (public) ingress - if an ingress exist and the check from service was ok
+	// Try to do the healtcheck also from (public) ingress - if an ingress exist and the check from service was ok
 	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && healthStatusOfService {
 		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
 	}
 
-	//In case the application need to be checked from outside - let it fail
+	// In case the application need to be checked from outside - let it fail
 	if _, ok := app.Properties["k8sHealthCheckThroughIngress"]; ok {
 		if !d.AppStateInfo.HealthyAlsoFromIngress {
 			if len(k8sIngresses[k8sHealthCheckServiceName]) == 0 {
@@ -425,10 +425,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 }
 
 func podExists(deployment apps.Deployment) bool {
-	if deployment.Status.AvailableReplicas == 0 {
-		return false
-	}
-	return true
+	return deployment.Status.AvailableReplicas != 0
 }
 
 // checkPublicHealth calls the healthcheck via public ingress
@@ -437,7 +434,7 @@ func checkPublicHealth(ingresses []K8sIngressInfo, healtcheckPath string) bool {
 	var checktype string
 	var ok bool
 	for _, ing := range ingresses {
-		//At least one ingress should succeed
+		// At least one ingress should succeed
 		ok, reason, checktype = checkHealth(AppDeploymentInfo{}, "https://"+ing.Host, healtcheckPath)
 		if ok {
 			return true
@@ -465,7 +462,7 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 	statusCode := r.StatusCode
 
 	if healtcheckPath != "" {
-		//Parse healthcheck
+		// Parse healthcheck
 
 		jsonMap := &HealthCheckResponse{
 			Services: []HealthCheckService{},
@@ -493,14 +490,14 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 			}
 
 			if status.Name != "" {
-				healthcheck_dependencies.With(prometheus.Labels{"application": status.Name, "dependency": service.Name, "team": status.VistectureApp.Team}).Set(s)
+				healthcheckDependencies.With(prometheus.Labels{"application": status.Name, "dependency": service.Name, "team": status.VistectureApp.Team}).Set(s)
 			}
 		}
 
 		return finalStatus, statusText, HealthCheckType_HealthCheck
 	}
 
-	//Fallback if no healthcheck is configured
+	// Fallback if no healthcheck is configured
 
 	if statusCode > 500 {
 		return false, fmt.Sprintf("Fallbackcheck returns error status %v ", statusCode), HealthCheckType_SimpleCheck

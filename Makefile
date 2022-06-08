@@ -1,8 +1,14 @@
 VERSION=2.1.3
 
-.PHONY: docker dockerpublish test
+.PHONY: docker dockerpublish test run run-demo
 
 default: test
+
+run:
+	go run vistecture-dashboard.go
+
+run-demo:
+	go run vistecture-dashboard.go -config=example/project.yml -Demo
 
 test:
 	go test -vet=all ./...

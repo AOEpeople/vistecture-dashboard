@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	flag.Set("alsologtostderr", "true")
+	_ = flag.Set("alsologtostderr", "true")
 
 	d := &interfaces.DashboardController{}
 	flag.StringVar(&d.ProjectPath, "config", "example/project.yml", "Path to project config")

@@ -1,15 +1,16 @@
 package kube
 
 import (
-	apps "k8s.io/api/apps/v1"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	apps "k8s.io/api/apps/v1"
 )
 
 func TestCheckHealth_AllHealthy(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("{\"services\": []}"))
+		_, _ = w.Write([]byte("{\"services\": []}"))
 
 	}))
 	defer server.Close()
@@ -22,7 +23,7 @@ func TestCheckHealth_AllHealthy(t *testing.T) {
 
 func TestCheckHealth_UnhealthyService(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("{\"services\": [{\"name\": \"dummy\", \"alive\": false, \"details\": \"dummy\"}]}"))
+		_, _ = w.Write([]byte("{\"services\": [{\"name\": \"dummy\", \"alive\": false, \"details\": \"dummy\"}]}"))
 	}))
 	defer server.Close()
 
