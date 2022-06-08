@@ -1,3 +1,3 @@
-FROM aoepeople/vistecture-dashboard:2.1.3
+FROM aoepeople/vistecture-dashboard
 COPY . /definition
 CMD ["-config", "/definition/project.yml"]
