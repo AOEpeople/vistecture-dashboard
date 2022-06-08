@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"log"
 	"regexp"
 	"sort"
@@ -8,7 +9,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1Batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingV1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/kubernetes"
@@ -25,6 +26,7 @@ type (
 		restconfig *rest.Config
 	}
 
+	// KubeInfoServiceInterface delivers information about k8s resources
 	KubeInfoServiceInterface interface {
 		GetKubernetesDeployments() (map[string]apps.Deployment, error)
 		GetIngressesByService() (map[string][]K8sIngressInfo, error)
@@ -32,12 +34,15 @@ type (
 		GetJobsByApp() (map[string][]v1Batch.Job, error)
 	}
 
+	// KubeInfoService implementation for k8s
 	KubeInfoService struct {
 		DemoMode bool
 	}
 )
 
-// kubeClientFromConfig loads a new kubeClient from the usual configuration
+var _ KubeInfoServiceInterface = &KubeInfoService{}
+
+// KubeClientFromConfig loads a new kubeClient from the usual configuration
 // (KUBECONFIG env param / selfconfigured in kubernetes)
 func KubeClientFromConfig() (*kubeClient, error) {
 	var client = new(kubeClient)
@@ -68,7 +73,7 @@ func KubeClientFromConfig() (*kubeClient, error) {
 	return client, nil
 }
 
-// getKubernetesDeployments fetches from Config or Demo Data
+// GetKubernetesDeployments fetches from Config or Demo Data
 func (k *KubeInfoService) GetKubernetesDeployments() (map[string]apps.Deployment, error) {
 	var deployments *apps.DeploymentList
 
@@ -78,7 +83,7 @@ func (k *KubeInfoService) GetKubernetesDeployments() (map[string]apps.Deployment
 	}
 
 	deploymentClient := client.Clientset.AppsV1().Deployments(client.Namespace)
-	deployments, err = deploymentClient.List(metav1.ListOptions{})
+	deployments, err = deploymentClient.List(context.Background(), metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
@@ -94,9 +99,10 @@ func (k *KubeInfoService) GetKubernetesDeployments() (map[string]apps.Deployment
 	return deploymentIndex, nil
 }
 
-// getIngressesByService fetches from Config or Demo Data
+// GetIngressesByService fetches from Config or Demo Data
 func (k *KubeInfoService) GetIngressesByService() (map[string][]K8sIngressInfo, error) {
-	var ingresses *extensions.IngressList
+
+	var ingresses *networkingV1.IngressList
 
 	client, err := KubeClientFromConfig()
 
@@ -104,8 +110,8 @@ func (k *KubeInfoService) GetIngressesByService() (map[string][]K8sIngressInfo, 
 		return nil, err
 	}
 
-	ingressClient := client.Clientset.ExtensionsV1beta1().Ingresses(client.Namespace)
-	ingresses, err = ingressClient.List(metav1.ListOptions{})
+	ingressClient := client.Clientset.NetworkingV1().Ingresses(client.Namespace)
+	ingresses, err = ingressClient.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -114,12 +120,12 @@ func (k *KubeInfoService) GetIngressesByService() (map[string][]K8sIngressInfo, 
 	return groupByServiceName(ingresses), nil
 }
 
-func groupByServiceName(ingresses *extensions.IngressList) map[string][]K8sIngressInfo {
+func groupByServiceName(ingresses *networkingV1.IngressList) map[string][]K8sIngressInfo {
 	ingressIndex := make(map[string][]K8sIngressInfo)
 	for _, ing := range ingresses.Items {
 		for _, rule := range ing.Spec.Rules {
 			for _, p := range rule.HTTP.Paths {
-				name := p.Backend.ServiceName
+				name := p.Backend.Service.Name
 				ingressIndex[name] = append(ingressIndex[name], K8sIngressInfo{URL: rule.Host + p.Path, Host: rule.Host, Path: p.Path})
 			}
 		}
@@ -145,7 +151,7 @@ func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
 	}
 
 	serviceClient := client.Clientset.CoreV1().Services(client.Namespace)
-	services, err := serviceClient.List(metav1.ListOptions{})
+	services, err := serviceClient.List(context.Background(), metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
@@ -170,7 +176,7 @@ func (k *KubeInfoService) GetJobsByApp() (map[string][]v1Batch.Job, error) {
 	}
 
 	jobsClient := client.Clientset.BatchV1().Jobs(client.Namespace)
-	jobs, err := jobsClient.List(metav1.ListOptions{})
+	jobs, err := jobsClient.List(context.Background(), metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
@@ -180,13 +186,13 @@ func (k *KubeInfoService) GetJobsByApp() (map[string][]v1Batch.Job, error) {
 
 	log.Printf("K8s: found %v Jobs..\n", len(jobs.Items))
 	for _, job := range jobs.Items {
-		//Match the jobname to appname (by deleting the last generated number for cronjobs - e.g. "akeneo-12345"  is the last created job for "akeneo")
+		// Match the jobname to appname (by deleting the last generated number for cronjobs - e.g. "akeneo-12345"  is the last created job for "akeneo")
 		applicationname := job.Name
 		reg := regexp.MustCompile("(.*)-([0-9]+)")
 		submatches := reg.FindStringSubmatch(applicationname)
 		if len(submatches) == 3 {
-			//fmt.Printf("%q\n", submatches)
-			//log.Printf("submatch %v for %v", submatches[1], applicationname)
+			// fmt.Printf("%q\n", submatches)
+			// log.Printf("submatch %v for %v", submatches[1], applicationname)
 			applicationname = submatches[1]
 		}
 		jobsIndex[applicationname] = append(jobsIndex[applicationname], job)

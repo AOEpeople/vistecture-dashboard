@@ -9,12 +9,12 @@ Works together with [Vistecture](https://github.com/aoepeople/vistecture) and sh
 
 ## Usage ##
 
-You can use the Dockerimage: `aoepeople/vistecture-dashboard:2.1.3`
+You can use the Dockerimage: `aoepeople/vistecture-dashboard`
 
 ### Example Project
 
 ```
-docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard:2.1.3
+docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard
 ```
 
 ### Custom Project
@@ -23,7 +23,7 @@ Just copy your vistecture definitions into /vistecture/project.yml
 The following Dockerfile could be used to build an image running the dashboard for your defined architecture:
 
 ```dockerfile
-FROM aoepeople/vistecture-dashboard:2.1.3
+FROM aoepeople/vistecture-dashboard
 
 COPY definition /definition
 CMD ["-config", "/definition/project.yml"]

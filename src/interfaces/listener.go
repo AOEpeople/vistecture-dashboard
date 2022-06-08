@@ -36,10 +36,10 @@ type (
 
 // Server defines controller actions
 func (d *DashboardController) Server() error {
-	//load once (will panic before we start listen)
+	// load once (will panic before we start listen)
 	project := vistecture.LoadProject(d.ProjectPath)
 
-	//Prepare the status fetcher (will run in background and starts regual checks)
+	// Prepare the status fetcher (will run in background and starts regual checks)
 	statusFetcher := kube.NewStatusFetcher(project.Applications, d.DemoMode)
 	go statusFetcher.FetchStatusInRegularInterval()
 
@@ -54,7 +54,7 @@ func (d *DashboardController) Server() error {
 }
 
 // dashBoardHandler handles the view Request
-func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, r *http.Request, statusFetcher *kube.StatusFetcher) {
+func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, _ *http.Request, statusFetcher *kube.StatusFetcher) {
 	viewdata := templateData{
 		Now: time.Now(),
 	}
@@ -118,7 +118,7 @@ func (d *DashboardController) renderDashboardStatus(rw http.ResponseWriter, view
 
 	rw.Header().Set("content-type", "text/html")
 	rw.WriteHeader(http.StatusOK)
-	io.Copy(rw, buf)
+	_, _ = io.Copy(rw, buf)
 }
 
 func (a ByName) Len() int           { return len(a) }
@@ -129,5 +129,5 @@ func (a ByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 func e(rw http.ResponseWriter, err error) {
 	rw.WriteHeader(http.StatusInternalServerError)
 	rw.Header().Set("content-type", "text/plain")
-	fmt.Fprintf(rw, "%+v", err)
+	_, _ = fmt.Fprintf(rw, "%+v", err)
 }

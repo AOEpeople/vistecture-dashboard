@@ -1,106 +1,110 @@
 package kube
 
 import (
-	apibatchv1 "k8s.io/api/batch/v1"
-	apiextensionv1beta "k8s.io/api/extensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	appsv1 "k8s.io/api/apps/v1"
-	apiv1 "k8s.io/api/core/v1"
-
+	appsV1 "k8s.io/api/apps/v1"
+	batchV1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
+	networkingV1 "k8s.io/api/networking/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type (
+	// DemoService fake implemnation used for testing
 	DemoService struct{}
 )
 
-func (d *DemoService) GetKubernetesDeployments() (map[string]appsv1.Deployment, error) {
+var _ KubeInfoServiceInterface = &DemoService{}
 
-	deployments := make(map[string]appsv1.Deployment)
-	deployments["flamingo"] = appsv1.Deployment{
+// GetKubernetesDeployments returns fake deployments
+func (d *DemoService) GetKubernetesDeployments() (map[string]appsV1.Deployment, error) {
 
-		ObjectMeta: metav1.ObjectMeta{
+	deployments := make(map[string]appsV1.Deployment)
+	deployments["flamingo"] = appsV1.Deployment{
+
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: "flamingo",
 		},
-		Spec: appsv1.DeploymentSpec{
-			Template: apiv1.PodTemplateSpec{
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+		Spec: appsV1.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
 						{Image: "flamingo:v1.0.0"},
 					},
 				},
 			},
 		},
-		Status: appsv1.DeploymentStatus{
+		Status: appsV1.DeploymentStatus{
 			AvailableReplicas:  3,
 			Replicas:           5,
 			ObservedGeneration: 132,
-			Conditions: []appsv1.DeploymentCondition{
-				{Status: apiv1.ConditionTrue, Type: appsv1.DeploymentAvailable, Message: "Test Condition is feeling good!"},
+			Conditions: []appsV1.DeploymentCondition{
+				{Status: v1.ConditionTrue, Type: appsV1.DeploymentAvailable, Message: "Test Condition is feeling good!"},
 			},
 		},
 	}
-	deployments["akeneo"] = appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
+	deployments["akeneo"] = appsV1.Deployment{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: "akeneo",
 		},
-		Spec: appsv1.DeploymentSpec{
-			Template: apiv1.PodTemplateSpec{
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+		Spec: appsV1.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
 						{Image: "akeneo:v1.2.3"},
 					},
 				},
 			},
 		},
-		Status: appsv1.DeploymentStatus{
+		Status: appsV1.DeploymentStatus{
 			AvailableReplicas:  1,
 			Replicas:           1,
 			ObservedGeneration: 32,
-			Conditions: []appsv1.DeploymentCondition{
-				{Status: apiv1.ConditionTrue, Type: appsv1.DeploymentAvailable, Message: "Test Condition is feeling good!"},
+			Conditions: []appsV1.DeploymentCondition{
+				{Status: v1.ConditionTrue, Type: appsV1.DeploymentAvailable, Message: "Test Condition is feeling good!"},
 			},
 		},
 	}
-	deployments["keycloak"] = appsv1.Deployment{
+	deployments["keycloak"] = appsV1.Deployment{
 
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: "keycloak",
 		},
-		Spec: appsv1.DeploymentSpec{
-			Template: apiv1.PodTemplateSpec{
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+		Spec: appsV1.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
 						{Image: "keycloak:v1.0.0"},
 						{Image: "keycloak-support:v1.0.0"},
 					},
 				},
 			},
 		},
-		Status: appsv1.DeploymentStatus{
+		Status: appsV1.DeploymentStatus{
 			AvailableReplicas:  2,
 			Replicas:           2,
 			ObservedGeneration: 12,
-			Conditions: []appsv1.DeploymentCondition{
-				{Status: apiv1.ConditionTrue, Type: appsv1.DeploymentAvailable, Message: "Test Condition is feeling good!"},
+			Conditions: []appsV1.DeploymentCondition{
+				{Status: v1.ConditionTrue, Type: appsV1.DeploymentAvailable, Message: "Test Condition is feeling good!"},
 			},
 		},
 	}
 	return deployments, nil
 }
 
+// GetIngressesByService returns fake services
 func (d *DemoService) GetIngressesByService() (map[string][]K8sIngressInfo, error) {
 
-	ingressList := &apiextensionv1beta.IngressList{
-		Items: []apiextensionv1beta.Ingress{
+	ingressList := &networkingV1.IngressList{
+		Items: []networkingV1.Ingress{
 			{
-				Spec: apiextensionv1beta.IngressSpec{
-					Rules: []apiextensionv1beta.IngressRule{
+				Spec: networkingV1.IngressSpec{
+					Rules: []networkingV1.IngressRule{
 						{
 							Host: "google.com",
-							IngressRuleValue: apiextensionv1beta.IngressRuleValue{
-								HTTP: &apiextensionv1beta.HTTPIngressRuleValue{
-									Paths: []apiextensionv1beta.HTTPIngressPath{
-										{Backend: apiextensionv1beta.IngressBackend{ServiceName: "flamingo"}, Path: "/"},
+							IngressRuleValue: networkingV1.IngressRuleValue{
+								HTTP: &networkingV1.HTTPIngressRuleValue{
+									Paths: []networkingV1.HTTPIngressPath{
+										{Backend: networkingV1.IngressBackend{Service: &networkingV1.IngressServiceBackend{Name: "flamingo"}}, Path: "/"},
 									},
 								},
 							},
@@ -109,14 +113,14 @@ func (d *DemoService) GetIngressesByService() (map[string][]K8sIngressInfo, erro
 				},
 			},
 			{
-				Spec: apiextensionv1beta.IngressSpec{
-					Rules: []apiextensionv1beta.IngressRule{
+				Spec: networkingV1.IngressSpec{
+					Rules: []networkingV1.IngressRule{
 						{
 							Host: "google.com",
-							IngressRuleValue: apiextensionv1beta.IngressRuleValue{
-								HTTP: &apiextensionv1beta.HTTPIngressRuleValue{
-									Paths: []apiextensionv1beta.HTTPIngressPath{
-										{Backend: apiextensionv1beta.IngressBackend{ServiceName: "akeneo"}, Path: "/akeneo"},
+							IngressRuleValue: networkingV1.IngressRuleValue{
+								HTTP: &networkingV1.HTTPIngressRuleValue{
+									Paths: []networkingV1.HTTPIngressPath{
+										{Backend: networkingV1.IngressBackend{Service: &networkingV1.IngressServiceBackend{Name: "akeneo"}}, Path: "/akeneo"},
 									},
 								},
 							},
@@ -125,14 +129,14 @@ func (d *DemoService) GetIngressesByService() (map[string][]K8sIngressInfo, erro
 				},
 			},
 			{
-				Spec: apiextensionv1beta.IngressSpec{
-					Rules: []apiextensionv1beta.IngressRule{
+				Spec: networkingV1.IngressSpec{
+					Rules: []networkingV1.IngressRule{
 						{
 							Host: "keycloak.bla",
-							IngressRuleValue: apiextensionv1beta.IngressRuleValue{
-								HTTP: &apiextensionv1beta.HTTPIngressRuleValue{
-									Paths: []apiextensionv1beta.HTTPIngressPath{
-										{Backend: apiextensionv1beta.IngressBackend{ServiceName: "keycloak"}, Path: "/blabla"},
+							IngressRuleValue: networkingV1.IngressRuleValue{
+								HTTP: &networkingV1.HTTPIngressRuleValue{
+									Paths: []networkingV1.HTTPIngressPath{
+										{Backend: networkingV1.IngressBackend{Service: &networkingV1.IngressServiceBackend{Name: "keycloak"}}, Path: "/blabla"},
 									},
 								},
 							},
@@ -141,17 +145,17 @@ func (d *DemoService) GetIngressesByService() (map[string][]K8sIngressInfo, erro
 				},
 			},
 			{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: metaV1.ObjectMeta{
 					Name: "keycloak",
 				},
-				Spec: apiextensionv1beta.IngressSpec{
-					Rules: []apiextensionv1beta.IngressRule{
+				Spec: networkingV1.IngressSpec{
+					Rules: []networkingV1.IngressRule{
 						{
 							Host: "keycloak.om3",
-							IngressRuleValue: apiextensionv1beta.IngressRuleValue{
-								HTTP: &apiextensionv1beta.HTTPIngressRuleValue{
-									Paths: []apiextensionv1beta.HTTPIngressPath{
-										{Backend: apiextensionv1beta.IngressBackend{ServiceName: "keycloak"}, Path: "/"},
+							IngressRuleValue: networkingV1.IngressRuleValue{
+								HTTP: &networkingV1.HTTPIngressRuleValue{
+									Paths: []networkingV1.HTTPIngressPath{
+										{Backend: networkingV1.IngressBackend{Service: &networkingV1.IngressServiceBackend{Name: "keycloak"}}, Path: "/"},
 									},
 								},
 							},
@@ -164,26 +168,27 @@ func (d *DemoService) GetIngressesByService() (map[string][]K8sIngressInfo, erro
 	return groupByServiceName(ingressList), nil
 }
 
-func (d *DemoService) GetServices() (map[string]apiv1.Service, error) {
-	services := make(map[string]apiv1.Service)
-	services["keycloak"] = apiv1.Service{
-		ObjectMeta: metav1.ObjectMeta{
+// GetServices returns fake services
+func (d *DemoService) GetServices() (map[string]v1.Service, error) {
+	services := make(map[string]v1.Service)
+	services["keycloak"] = v1.Service{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: "keycloak",
 		},
 	}
-	services["flamingo"] = apiv1.Service{
-		ObjectMeta: metav1.ObjectMeta{
+	services["flamingo"] = v1.Service{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: "flamingo",
 		},
-		Spec: apiv1.ServiceSpec{
-			Ports: []apiv1.ServicePort{
-				apiv1.ServicePort{Port: 80},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{
+				{Port: 80},
 			},
 		},
 	}
 
-	services["akeneo"] = apiv1.Service{
-		ObjectMeta: metav1.ObjectMeta{
+	services["akeneo"] = v1.Service{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: "akeneo",
 		},
 	}
@@ -191,6 +196,7 @@ func (d *DemoService) GetServices() (map[string]apiv1.Service, error) {
 	return services, nil
 }
 
-func (k *DemoService) GetJobsByApp() (map[string][]apibatchv1.Job, error) {
+// GetJobsByApp returns jobs matching app names
+func (k *DemoService) GetJobsByApp() (map[string][]batchV1.Job, error) {
 	return nil, nil
 }
