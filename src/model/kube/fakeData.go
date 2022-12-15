@@ -23,6 +23,9 @@ func (d *DemoService) GetKubernetesDeployments() (map[string]appsV1.Deployment, 
 
 		ObjectMeta: metaV1.ObjectMeta{
 			Name: "flamingo",
+			Labels: map[string]string{
+				"chart": "flamingo-1.0.1",
+			},
 		},
 		Spec: appsV1.DeploymentSpec{
 			Template: v1.PodTemplateSpec{
@@ -45,6 +48,10 @@ func (d *DemoService) GetKubernetesDeployments() (map[string]appsV1.Deployment, 
 	deployments["akeneo"] = appsV1.Deployment{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name: "akeneo",
+			Labels: map[string]string{
+				"chart":           "akeneo-1.2.3",
+				"helm.sh/version": "1.2.3",
+			},
 		},
 		Spec: appsV1.DeploymentSpec{
 			Template: v1.PodTemplateSpec{

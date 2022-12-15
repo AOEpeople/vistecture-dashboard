@@ -47,6 +47,15 @@
         <span title="{{ .FullPath }}">{{ .Version }}</span><br/>
     {{- end }}
     </td>
+    <td class="mdl-data-table__cell--non-numeric">
+    {{- if .Labels.helm}}    
+    <span title="Helm">{{ .Labels.helm }}</span><br/>
+    {{- else if .Labels.chart}}    
+    <span title="Helm">{{ .Labels.chart }}</span><br/>
+    {{- else }}
+    <span title="Helm"></span><br/>
+    {{- end }}
+    </td>
 </tr>
 {{- end }}
 {{- end -}}
@@ -59,6 +68,7 @@
     <th class="mdl-data-table__cell--non-numeric urls">Urls (Ingresses)</th>
     <th class="mdl-data-table__cell--non-numeric cell-status">Status Info</th>
     <th class="mdl-data-table__cell--non-numeric">Image Version(s)</th>
+    <th class="mdl-data-table__cell--non-numeric">Helm Chart</th>
 </tr>
 {{- end -}}
 

@@ -29,6 +29,7 @@ type (
 	// AppDeploymentInfo wraps Info on any Deployment's Data
 	AppDeploymentInfo struct {
 		Name                string
+		Labels              map[string]string
 		Ingress             []K8sIngressInfo
 		Images              []Image
 		K8sDeployment       apps.Deployment
@@ -362,6 +363,14 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 
 	for _, c := range depl.Spec.Template.Spec.Containers {
 		d.Images = append(d.Images, buildImageStruct(c.Image))
+	}
+
+	d.Labels = make(map[string]string)
+	for k, e := range depl.Labels {
+		if k == "helm.sh/version" {
+			d.Labels["helm"] = e
+		}
+		d.Labels[k] = e
 	}
 
 	if !podExists(depl) {
