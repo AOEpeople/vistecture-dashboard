@@ -3,7 +3,7 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -486,7 +486,7 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 			Services: []HealthCheckService{},
 		}
 
-		responseBody, bodyErr := ioutil.ReadAll(r.Body)
+		responseBody, bodyErr := io.ReadAll(r.Body)
 		if bodyErr != nil {
 			return false, "Could not read from HealthcheckPath", HealthCheckType_HealthCheck
 		}

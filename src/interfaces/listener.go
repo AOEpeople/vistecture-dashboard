@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"sort"
 	"time"
@@ -94,7 +94,7 @@ func (d *DashboardController) renderDashboardStatus(rw http.ResponseWriter, view
 		"unstable":  func() uint { return kube.State_unstable },
 	})
 
-	b, err := ioutil.ReadFile(path.Join(d.Templates, "dashboard.html"))
+	b, err := os.ReadFile(path.Join(d.Templates, "dashboard.html"))
 
 	if err != nil {
 		e(rw, err)
