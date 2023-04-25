@@ -31,6 +31,7 @@ type (
 		GetKubernetesDeployments() (map[string]apps.Deployment, error)
 		GetIngressesByService() (map[string][]K8sIngressInfo, error)
 		GetServices() (map[string]v1.Service, error)
+		GetConfigMaps() (map[string]v1.ConfigMap, error)
 		GetJobsByApp() (map[string][]v1Batch.Job, error)
 	}
 
@@ -165,6 +166,31 @@ func (k *KubeInfoService) GetServices() (map[string]v1.Service, error) {
 
 	}
 	return serviceIndex, nil
+}
+
+func (k *KubeInfoService) GetConfigMaps() (map[string]v1.ConfigMap, error) {
+
+	client, err := KubeClientFromConfig()
+
+	if err != nil {
+		return nil, err
+	}
+
+	configMapClient := client.Clientset.CoreV1().ConfigMaps(client.Namespace)
+	configMaps, err := configMapClient.List(context.Background(), metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	configMapIndex := make(map[string]v1.ConfigMap)
+	log.Printf("K8s: found %v ConfigMaps..\n", len(configMaps.Items))
+
+	for _, configMap := range configMaps.Items {
+		configMapIndex[configMap.Name] = configMap
+
+	}
+	return configMapIndex, nil
 }
 
 func (k *KubeInfoService) GetJobsByApp() (map[string][]v1Batch.Job, error) {

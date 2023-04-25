@@ -196,7 +196,12 @@ func (d *DemoService) GetServices() (map[string]v1.Service, error) {
 	return services, nil
 }
 
+// GetConfigMaps returns fake config maps
+func (d *DemoService) GetConfigMaps() (map[string]v1.ConfigMap, error) {
+	return nil, nil
+}
+
 // GetJobsByApp returns jobs matching app names
-func (k *DemoService) GetJobsByApp() (map[string][]batchV1.Job, error) {
+func (d *DemoService) GetJobsByApp() (map[string][]batchV1.Job, error) {
 	return nil, nil
 }
