@@ -157,6 +157,11 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			panic("Could not get Deployment Config, check Configuration and Kubernetes Connection: " + err.Error())
 		}
 
+		configMaps, err := stm.KubeInfoService.GetConfigMaps()
+		if err != nil {
+			panic("Could not get Config Maps, check Configuration and Kubernetes Connection: " + err.Error())
+		}
+
 		// Add Ingresses
 		ingresses, err := stm.KubeInfoService.GetIngressesByService()
 		if err != nil {
@@ -189,7 +194,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			millisecondsToWait := rand.Intn(700) + 300
 			time.Sleep(time.Millisecond * time.Duration(millisecondsToWait))
 
-			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses, jobs))
+			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses, jobs, configMaps))
 		}
 
 		// exclusive lock map for write access
@@ -255,13 +260,17 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 }
 
 // checkAppStatusInKubernetes iterates through k8sDeployments and controls the result channel
-func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string][]v1Batch.Job) chan AppDeploymentInfo {
+func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string][]v1Batch.Job, k8sConfigMaps map[string]v1.ConfigMap) chan AppDeploymentInfo {
 	// result (like a futures)
 	res := make(chan AppDeploymentInfo, 1)
 
 	// start fetcher routing
 	go func(res chan AppDeploymentInfo) {
 		name := app.Name
+		config := k8sConfigMaps[name]
+		if n, ok := config.Data["k8sDeploymentName"]; ok {
+			app.Properties["k8sDeploymentName"] = n
+		}
 
 		// Replace Name by configured Kubernetes Name
 		if n, ok := app.Properties["k8sType"]; ok && n == "job" {
