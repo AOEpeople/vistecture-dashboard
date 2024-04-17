@@ -12,25 +12,27 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/AOEpeople/vistecture-dashboard/v2/src/model/kube"
 	"github.com/AOEpeople/vistecture-dashboard/v2/src/model/vistecture"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type (
 	DashboardController struct {
-		ProjectPath string
-		Templates   string
-		Listen      string
-		DemoMode    bool
+		ProjectPath     string
+		Templates       string
+		Listen          string
+		IgnoredServices []string
+		DemoMode        bool
 	}
 
 	ByName []kube.AppDeploymentInfo
 
 	// templateData holds info for Dashboard Rendering
 	templateData struct {
-		Failed, Unhealthy, Healthy, Unknown, Unstable []kube.AppDeploymentInfo
-		Now                                           time.Time
+		Failed, Unhealthy, Healthy, Unknown, Unstable, Ignored []kube.AppDeploymentInfo
+		Now                                                    time.Time
 	}
 )
 
@@ -41,7 +43,7 @@ func (d *DashboardController) Server() error {
 
 	// Prepare the status fetcher (will run in background and starts regual checks)
 	statusFetcher := kube.NewStatusFetcher(project.Applications, d.DemoMode)
-	go statusFetcher.FetchStatusInRegularInterval()
+	go statusFetcher.FetchStatusInRegularInterval(d.IgnoredServices)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path.Join(d.Templates, "static")))))
 	http.Handle("/metrics", promhttp.Handler())
@@ -61,6 +63,8 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, _ *http.R
 	result := statusFetcher.GetCurrentResult()
 	for _, deployment := range result {
 		switch deployment.AppStateInfo.State {
+		case kube.State_ignored:
+			viewdata.Ignored = append(viewdata.Ignored, deployment)
 		case kube.State_unknown:
 			viewdata.Unknown = append(viewdata.Unknown, deployment)
 		case kube.State_unhealthy:
@@ -74,6 +78,7 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, _ *http.R
 		}
 	}
 
+	sort.Sort(ByName(viewdata.Ignored))
 	sort.Sort(ByName(viewdata.Unknown))
 	sort.Sort(ByName(viewdata.Unhealthy))
 	sort.Sort(ByName(viewdata.Failed))
@@ -87,6 +92,7 @@ func (d *DashboardController) renderDashboardStatus(rw http.ResponseWriter, view
 	tpl := template.New("dashboard")
 
 	tpl.Funcs(template.FuncMap{
+		"ignored":   func() uint { return kube.State_ignored },
 		"unknown":   func() uint { return kube.State_unknown },
 		"unhealthy": func() uint { return kube.State_unhealthy },
 		"failed":    func() uint { return kube.State_failed },

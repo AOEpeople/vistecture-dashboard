@@ -10,6 +10,8 @@
         <i class="material-icons mdl-color-text--green">check_circle</i>
     {{- else if eq .AppStateInfo.State unstable }}
         <i class="material-icons mdl-color-text--orange">trending_flat</i>
+    {{- else if eq .AppStateInfo.State ignored }}
+        <i class="material-icons mdl-color-text--brown">notifications_paused</i>
     {{- else }}
         <i class="material-icons mdl-color-text--blue-grey">help</i>
     {{- end }}
@@ -131,6 +133,10 @@
                     {{ template "table" .Unknown }}
                     {{- end }}
 
+                    {{- if len .Ignored }}
+                    {{ template "tablehead" "Ignored" }}
+                    {{ template "table" .Ignored }}
+                    {{- end }}
 
                     </tbody>
                 </table>
