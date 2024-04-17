@@ -3,7 +3,7 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -29,6 +29,7 @@ type (
 	// AppDeploymentInfo wraps Info on any Deployment's Data
 	AppDeploymentInfo struct {
 		Name                string
+		Labels              map[string]string
 		Ingress             []K8sIngressInfo
 		Images              []Image
 		K8sDeployment       apps.Deployment
@@ -364,6 +365,14 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		d.Images = append(d.Images, buildImageStruct(c.Image))
 	}
 
+	d.Labels = make(map[string]string)
+	for k, e := range depl.Labels {
+		if k == "helm.sh/version" {
+			d.Labels["helm"] = e
+		}
+		d.Labels[k] = e
+	}
+
 	if !podExists(depl) {
 		d.AppStateInfo.State = State_failed
 		d.AppStateInfo.StateReason = "No pod available"
@@ -477,7 +486,7 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 			Services: []HealthCheckService{},
 		}
 
-		responseBody, bodyErr := ioutil.ReadAll(r.Body)
+		responseBody, bodyErr := io.ReadAll(r.Body)
 		if bodyErr != nil {
 			return false, "Could not read from HealthcheckPath", HealthCheckType_HealthCheck
 		}
