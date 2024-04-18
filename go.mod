@@ -1,6 +1,6 @@
 module github.com/AOEpeople/vistecture-dashboard/v2
 
-go 1.18
+go 1.21
 
 require (
 	github.com/AOEpeople/vistecture/v2 v2.5.2
