@@ -91,6 +91,7 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, _ *http.R
 	sort.Sort(ByName(viewdata.Ignored))
 	sort.Sort(ByName(viewdata.Unknown))
 	sort.Sort(ByName(viewdata.Unhealthy))
+	sort.Sort(ByName(viewdata.Unstable))
 	sort.Sort(ByName(viewdata.Failed))
 	sort.Sort(ByName(viewdata.Healthy))
 
