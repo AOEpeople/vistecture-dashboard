@@ -6,31 +6,36 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/AOEpeople/vistecture-dashboard/v2/src/model/kube"
 	"github.com/AOEpeople/vistecture-dashboard/v2/src/model/vistecture"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type (
 	DashboardController struct {
-		ProjectPath string
-		Templates   string
-		Listen      string
-		DemoMode    bool
+		ProjectPath     string
+		Templates       string
+		Listen          string
+		IgnoredServices []string
+		DemoMode        bool
 	}
 
 	ByName []kube.AppDeploymentInfo
 
 	// templateData holds info for Dashboard Rendering
 	templateData struct {
-		Failed, Unhealthy, Healthy, Unknown, Unstable []kube.AppDeploymentInfo
-		Now                                           time.Time
+		Failed, Unhealthy, Healthy, Unknown, Unstable, Ignored []kube.AppDeploymentInfo
+		Now                                                    time.Time
 	}
 )
 
@@ -39,9 +44,16 @@ func (d *DashboardController) Server() error {
 	// load once (will panic before we start listen)
 	project := vistecture.LoadProject(d.ProjectPath)
 
+	var fakeHealthcheckPort int32
+	if d.DemoMode {
+		portReceive := make(chan int32)
+		go serveDemoHealthCheck(portReceive)
+		fakeHealthcheckPort = <-portReceive
+	}
+
 	// Prepare the status fetcher (will run in background and starts regual checks)
-	statusFetcher := kube.NewStatusFetcher(project.Applications, d.DemoMode)
-	go statusFetcher.FetchStatusInRegularInterval()
+	statusFetcher := kube.NewStatusFetcher(project.Applications, d.DemoMode, fakeHealthcheckPort)
+	go statusFetcher.FetchStatusInRegularInterval(d.IgnoredServices)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path.Join(d.Templates, "static")))))
 	http.Handle("/metrics", promhttp.Handler())
@@ -61,6 +73,8 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, _ *http.R
 	result := statusFetcher.GetCurrentResult()
 	for _, deployment := range result {
 		switch deployment.AppStateInfo.State {
+		case kube.State_ignored:
+			viewdata.Ignored = append(viewdata.Ignored, deployment)
 		case kube.State_unknown:
 			viewdata.Unknown = append(viewdata.Unknown, deployment)
 		case kube.State_unhealthy:
@@ -74,8 +88,10 @@ func (d *DashboardController) dashBoardHandler(rw http.ResponseWriter, _ *http.R
 		}
 	}
 
+	sort.Sort(ByName(viewdata.Ignored))
 	sort.Sort(ByName(viewdata.Unknown))
 	sort.Sort(ByName(viewdata.Unhealthy))
+	sort.Sort(ByName(viewdata.Unstable))
 	sort.Sort(ByName(viewdata.Failed))
 	sort.Sort(ByName(viewdata.Healthy))
 
@@ -87,11 +103,15 @@ func (d *DashboardController) renderDashboardStatus(rw http.ResponseWriter, view
 	tpl := template.New("dashboard")
 
 	tpl.Funcs(template.FuncMap{
+		"ignored":   func() uint { return kube.State_ignored },
 		"unknown":   func() uint { return kube.State_unknown },
 		"unhealthy": func() uint { return kube.State_unhealthy },
 		"failed":    func() uint { return kube.State_failed },
 		"healthy":   func() uint { return kube.State_healthy },
 		"unstable":  func() uint { return kube.State_unstable },
+		"splitLines": func(s string) []string {
+			return strings.Split(s, "\n")
+		},
 	})
 
 	b, err := os.ReadFile(path.Join(d.Templates, "dashboard.html"))
@@ -130,4 +150,22 @@ func e(rw http.ResponseWriter, err error) {
 	rw.WriteHeader(http.StatusInternalServerError)
 	rw.Header().Set("content-type", "text/plain")
 	_, _ = fmt.Fprintf(rw, "%+v", err)
+}
+
+func serveDemoHealthCheck(fakeHealthcheckPort chan<- int32) {
+	ln, err := net.Listen("tcp", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Demo mode enabled: start fake health check on " + ln.Addr().String())
+	_, p, _ := net.SplitHostPort(ln.Addr().String())
+	pp, _ := strconv.Atoi(p)
+	fakeHealthcheckPort <- int32(pp)
+
+	err = http.Serve(ln, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	}))
+	if err != nil {
+		log.Fatal("fake health check failed: ", err)
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -59,12 +60,12 @@ type (
 		Alive bool
 	}
 
-	// Response Wraps a list of Services
+	// HealthCheckResponse wraps a list of Services
 	HealthCheckResponse struct {
 		Services []HealthCheckService `json:"services"`
 	}
 
-	// Service describes a Service the Application is dependent of, its Liveness and Details on its Status
+	// HealthCheckService describes a Service the Application is dependent of, its Liveness and Details on its Status
 	HealthCheckService struct {
 		Name    string `json:"name"`
 		Alive   bool   `json:"alive"`
@@ -109,6 +110,10 @@ const (
 	State_unhealthy
 	State_healthy
 	State_unstable
+	State_ignored
+)
+
+const (
 	// This is the Interval for goroutine polling of kubernetes
 	refreshInterval = 15
 
@@ -118,13 +123,13 @@ const (
 	HealthCheckType_Job           = "job"
 )
 
-func NewStatusFetcher(apps []*vistectureCore.Application, demoMode bool) *StatusFetcher {
+func NewStatusFetcher(apps []*vistectureCore.Application, demoMode bool, fakeHealthcheckPort int32) *StatusFetcher {
 	statusManager := new(StatusFetcher)
 	statusManager.mu = new(sync.RWMutex)
 	statusManager.apps = make(map[string]AppDeploymentInfo)
 	statusManager.definedVistectureApps = apps
 	if demoMode {
-		statusManager.KubeInfoService = &DemoService{}
+		statusManager.KubeInfoService = &DemoService{fakeHealthcheckPort: fakeHealthcheckPort}
 	} else {
 		statusManager.KubeInfoService = &KubeInfoService{}
 	}
@@ -147,7 +152,7 @@ func (stm *StatusFetcher) GetCurrentResult() map[string]AppDeploymentInfo {
 }
 
 // FetchStatusInRegularInterval controls the interval in which new info is fetched and loops over configured applications
-func (stm *StatusFetcher) FetchStatusInRegularInterval() {
+func (stm *StatusFetcher) FetchStatusInRegularInterval(ignoredServices []string) {
 	var tickIteration = 0
 	lastResults := make(map[string][]AppDeploymentInfo)
 	fetcher := func() {
@@ -195,7 +200,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 			millisecondsToWait := rand.Intn(700) + 300
 			time.Sleep(time.Millisecond * time.Duration(millisecondsToWait))
 
-			results = append(results, checkAppStatusInKubernetes(app, k8sDeployments, services, ingresses, jobs, configMaps))
+			results = append(results, checkAppStatusInKubernetes(ignoredServices, app, k8sDeployments, services, ingresses, jobs, configMaps))
 		}
 
 		// exclusive lock map for write access
@@ -238,7 +243,7 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 
 			stm.apps[status.Name] = status
 			switch status.AppStateInfo.State {
-			case State_healthy:
+			case State_healthy, State_ignored:
 				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(0)
 			case State_unhealthy, State_unstable:
 				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(2)
@@ -261,27 +266,32 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval() {
 }
 
 // checkAppStatusInKubernetes iterates through k8sDeployments and controls the result channel
-func checkAppStatusInKubernetes(app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string][]v1Batch.Job, k8sConfigMaps map[string]v1.ConfigMap) chan AppDeploymentInfo {
+func checkAppStatusInKubernetes(ignoredServices []string, app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo, k8sJobs map[string][]v1Batch.Job, k8sConfigMaps map[string]v1.ConfigMap) chan AppDeploymentInfo {
 	// result (like a futures)
 	res := make(chan AppDeploymentInfo, 1)
 
 	// start fetcher routing
-	go func(res chan AppDeploymentInfo) {
+	go func(res chan<- AppDeploymentInfo) {
 		name := app.Name
 		config := k8sConfigMaps[name]
 		if n, ok := config.Data["k8sDeploymentName"]; ok {
 			app.Properties["k8sDeploymentName"] = n
 		}
 
+		var info AppDeploymentInfo
 		// Replace Name by configured Kubernetes Name
 		if n, ok := app.Properties["k8sType"]; ok && n == "job" {
-			d := checkJob(name, app, k8sJobs)
-			res <- d
+			info = checkJob(name, app, k8sJobs)
 		} else {
-			d := checkDeploymentWithHealthCheck(name, app, k8sDeployments, k8sServices, k8sIngresses)
-			res <- d
+			info = checkDeploymentWithHealthCheck(name, app, k8sDeployments, k8sServices, k8sIngresses)
 		}
 
+		if slices.Contains(ignoredServices, name) {
+			info.AppStateInfo.State = State_ignored
+			info.AppStateInfo.StateReason = "Ignored by setting override"
+		}
+
+		res <- info
 	}(res)
 
 	return res
@@ -325,7 +335,7 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 	}
 
 	if lastJob.Status.Succeeded == 0 && lastJob.Status.Failed > 0 {
-		// one succeded job is ok
+		// one succeeded job is ok
 		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Last job failed: " + lastJob.Name
 		return d
@@ -336,7 +346,6 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 }
 
 func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application, k8sDeployments map[string]apps.Deployment, k8sServices map[string]v1.Service, k8sIngresses map[string][]K8sIngressInfo) AppDeploymentInfo {
-
 	// Replace Name by configured Kubernetes Name
 	if n, ok := app.Properties["k8sDeploymentName"]; ok && n != "" {
 		name = n
@@ -395,7 +404,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	}
 	if len(service.Spec.Ports) < 1 {
 		d.AppStateInfo.State = State_failed
-		d.AppStateInfo.StateReason = "Service has no port.. cannot check " + k8sHealthCheckServiceName
+		d.AppStateInfo.StateReason = "Service has no port. Cannot check " + k8sHealthCheckServiceName
 		return d
 	}
 
@@ -410,17 +419,18 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		}
 	}
 
-	domain := fmt.Sprintf("%v:%v", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
+	domain := fmt.Sprintf("%s:%d", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
 	healthStatusOfService, reason, healthcheckType := checkHealth(d, "http://"+domain, app.Properties["healthCheckPath"])
 	d.AppStateInfo.HealthCheckType = healthcheckType
+
 	if !healthStatusOfService {
 		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Service Unhealthy: " + reason
 		return d
 	}
 
-	// Try to do the healtcheck also from (public) ingress - if an ingress exist and the check from service was ok
-	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && healthStatusOfService {
+	// Try to do the healthcheck also from (public) ingress - if an ingress exist and the check from service was ok
+	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 {
 		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
 	}
 
@@ -481,7 +491,6 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 
 	if healtcheckPath != "" {
 		// Parse healthcheck
-
 		jsonMap := &HealthCheckResponse{
 			Services: []HealthCheckService{},
 		}
@@ -516,7 +525,6 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 	}
 
 	// Fallback if no healthcheck is configured
-
 	if statusCode > 500 {
 		return false, fmt.Sprintf("Fallbackcheck returns error status %v ", statusCode), HealthCheckType_SimpleCheck
 	}

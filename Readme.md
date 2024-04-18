@@ -4,7 +4,7 @@ Docker: `aoepeople/vistecture-dashboard`
 
 Works together with [Vistecture](https://github.com/aoepeople/vistecture) and shows the state of the vistecture architecture in kubernetes like this:
 
-![Vistecture_Dashboard](screenshot.jpg)
+![Vistecture_Dashboard](screenshot.png)
 
 
 ## Usage ##
@@ -13,7 +13,7 @@ You can use the Dockerimage: `aoepeople/vistecture-dashboard`
 
 ### Example Project
 
-```
+```shell
 docker run --rm -ti -p 8080:8080 aoepeople/vistecture-dashboard
 ```
 
@@ -38,7 +38,7 @@ The following "Properties" are used to control dashboard behaviour
 - `k8sDeploymentName`: Override the name of the deployment in kubernetes that is checked(default = appname)
 - `k8sHealthCheckServiceName`: Override service name that is used to check health (default = appname)
 - `k8sHealthCheckThroughIngress`: If the app should be checked from public (ingress is required for the service)
-- `k8sType`: set to "job" if the application is not represented by an deployment in kubernetes, but it is just a job
+- `k8sType`: set to "job" if the application is not represented by a deployment in kubernetes, but it is just a job
 
 ### Healtcheck Format:
 
@@ -66,15 +66,31 @@ If a Healthcheck path is configured for the application the following format is 
 }
 ```
 
-## Development: ##
+### Ignore/Silence services
 
+T ignore failing services you can provide their `name` as ignore flags, e.g.
+
+```shell
+go run vistecture-dashboard.go -Demo -ignore akeneo -ignore flamingo
 ```
-# run
+
+respectively adjust the command in your dockerfile
+
+```dockerfile
+CMD ["-config", "/definition/project.yml", "-ignore", "myApp", "-ignore", "otherApp"]
+```
+
+## Development:
+
+run
+
+```shell
 go run vistecture-dashboard.go
 ```
 
 For a demo display please use:
-```
+
+```shell
 go run vistecture-dashboard.go -config=example/project.yml -Demo
 ```
 
