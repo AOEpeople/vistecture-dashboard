@@ -1,0 +1,6 @@
+name: service
+title: Example Service
+summary: This is an example
+properties:
+  deployment: kubernetes
+  k8sHealthCheckServiceName: localhost

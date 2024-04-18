@@ -1,4 +1,4 @@
-VERSION=2.2.1
+VERSION=2.2.2
 
 .PHONY: docker dockerpublish test run run-demo
 

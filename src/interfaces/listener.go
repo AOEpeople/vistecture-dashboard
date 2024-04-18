@@ -6,10 +6,13 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -41,8 +44,15 @@ func (d *DashboardController) Server() error {
 	// load once (will panic before we start listen)
 	project := vistecture.LoadProject(d.ProjectPath)
 
+	var fakeHealthcheckPort int32
+	if d.DemoMode {
+		portReceive := make(chan int32)
+		go serveDemoHealthCheck(portReceive)
+		fakeHealthcheckPort = <-portReceive
+	}
+
 	// Prepare the status fetcher (will run in background and starts regual checks)
-	statusFetcher := kube.NewStatusFetcher(project.Applications, d.DemoMode)
+	statusFetcher := kube.NewStatusFetcher(project.Applications, d.DemoMode, fakeHealthcheckPort)
 	go statusFetcher.FetchStatusInRegularInterval(d.IgnoredServices)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path.Join(d.Templates, "static")))))
@@ -98,6 +108,9 @@ func (d *DashboardController) renderDashboardStatus(rw http.ResponseWriter, view
 		"failed":    func() uint { return kube.State_failed },
 		"healthy":   func() uint { return kube.State_healthy },
 		"unstable":  func() uint { return kube.State_unstable },
+		"splitLines": func(s string) []string {
+			return strings.Split(s, "\n")
+		},
 	})
 
 	b, err := os.ReadFile(path.Join(d.Templates, "dashboard.html"))
@@ -136,4 +149,22 @@ func e(rw http.ResponseWriter, err error) {
 	rw.WriteHeader(http.StatusInternalServerError)
 	rw.Header().Set("content-type", "text/plain")
 	_, _ = fmt.Fprintf(rw, "%+v", err)
+}
+
+func serveDemoHealthCheck(fakeHealthcheckPort chan<- int32) {
+	ln, err := net.Listen("tcp", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Demo mode enabled: start fake health check on " + ln.Addr().String())
+	_, p, _ := net.SplitHostPort(ln.Addr().String())
+	pp, _ := strconv.Atoi(p)
+	fakeHealthcheckPort <- int32(pp)
+
+	err = http.Serve(ln, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	}))
+	if err != nil {
+		log.Fatal("fake health check failed: ", err)
+	}
 }

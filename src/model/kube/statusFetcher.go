@@ -60,12 +60,12 @@ type (
 		Alive bool
 	}
 
-	// Response Wraps a list of Services
+	// HealthCheckResponse wraps a list of Services
 	HealthCheckResponse struct {
 		Services []HealthCheckService `json:"services"`
 	}
 
-	// Service describes a Service the Application is dependent of, its Liveness and Details on its Status
+	// HealthCheckService describes a Service the Application is dependent of, its Liveness and Details on its Status
 	HealthCheckService struct {
 		Name    string `json:"name"`
 		Alive   bool   `json:"alive"`
@@ -123,13 +123,13 @@ const (
 	HealthCheckType_Job           = "job"
 )
 
-func NewStatusFetcher(apps []*vistectureCore.Application, demoMode bool) *StatusFetcher {
+func NewStatusFetcher(apps []*vistectureCore.Application, demoMode bool, fakeHealthcheckPort int32) *StatusFetcher {
 	statusManager := new(StatusFetcher)
 	statusManager.mu = new(sync.RWMutex)
 	statusManager.apps = make(map[string]AppDeploymentInfo)
 	statusManager.definedVistectureApps = apps
 	if demoMode {
-		statusManager.KubeInfoService = &DemoService{}
+		statusManager.KubeInfoService = &DemoService{fakeHealthcheckPort: fakeHealthcheckPort}
 	} else {
 		statusManager.KubeInfoService = &KubeInfoService{}
 	}
@@ -243,13 +243,13 @@ func (stm *StatusFetcher) FetchStatusInRegularInterval(ignoredServices []string)
 
 			stm.apps[status.Name] = status
 			switch status.AppStateInfo.State {
-			case State_healthy:
+			case State_healthy, State_ignored:
 				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(0)
 			case State_unhealthy, State_unstable:
 				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(2)
 			case State_failed:
 				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(3)
-			case State_unknown, State_ignored:
+			case State_unknown:
 				healthcheck.With(prometheus.Labels{"application": status.Name, "team": status.VistectureApp.Team}).Set(1)
 			}
 
@@ -335,7 +335,7 @@ func checkJob(name string, app *vistectureCore.Application, k8sJobs map[string][
 	}
 
 	if lastJob.Status.Succeeded == 0 && lastJob.Status.Failed > 0 {
-		// one succeded job is ok
+		// one succeeded job is ok
 		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Last job failed: " + lastJob.Name
 		return d
@@ -404,7 +404,7 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 	}
 	if len(service.Spec.Ports) < 1 {
 		d.AppStateInfo.State = State_failed
-		d.AppStateInfo.StateReason = "Service has no port.. cannot check " + k8sHealthCheckServiceName
+		d.AppStateInfo.StateReason = "Service has no port. Cannot check " + k8sHealthCheckServiceName
 		return d
 	}
 
@@ -419,17 +419,18 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		}
 	}
 
-	domain := fmt.Sprintf("%v:%v", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
+	domain := fmt.Sprintf("%s:%d", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
 	healthStatusOfService, reason, healthcheckType := checkHealth(d, "http://"+domain, app.Properties["healthCheckPath"])
 	d.AppStateInfo.HealthCheckType = healthcheckType
+
 	if !healthStatusOfService {
 		d.AppStateInfo.State = State_unhealthy
 		d.AppStateInfo.StateReason = "Service Unhealthy: " + reason
 		return d
 	}
 
-	// Try to do the healtcheck also from (public) ingress - if an ingress exist and the check from service was ok
-	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 && healthStatusOfService {
+	// Try to do the healthcheck also from (public) ingress - if an ingress exist and the check from service was ok
+	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 {
 		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
 	}
 
@@ -490,7 +491,6 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 
 	if healtcheckPath != "" {
 		// Parse healthcheck
-
 		jsonMap := &HealthCheckResponse{
 			Services: []HealthCheckService{},
 		}
@@ -525,7 +525,6 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 	}
 
 	// Fallback if no healthcheck is configured
-
 	if statusCode > 500 {
 		return false, fmt.Sprintf("Fallbackcheck returns error status %v ", statusCode), HealthCheckType_SimpleCheck
 	}
