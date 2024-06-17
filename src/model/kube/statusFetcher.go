@@ -429,13 +429,13 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		return d
 	}
 
-	// Try to do the healthcheck also from (public) ingress - if an ingress exist and the check from service was ok
-	if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 {
-		d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
-	}
-
-	// In case the application need to be checked from outside - let it fail
+	// In case the application need to be checked from outside, do the check and let it fail if unhealthy/misconfigured
 	if _, ok := app.Properties["k8sHealthCheckThroughIngress"]; ok {
+		// Try to do the healthcheck from ingress
+		if len(k8sIngresses[k8sHealthCheckServiceName]) > 0 {
+			d.AppStateInfo.HealthyAlsoFromIngress = checkPublicHealth(k8sIngresses[k8sHealthCheckServiceName], app.Properties["healthCheckPath"])
+		}
+
 		if !d.AppStateInfo.HealthyAlsoFromIngress {
 			if len(k8sIngresses[k8sHealthCheckServiceName]) == 0 {
 				d.AppStateInfo.State = State_failed
