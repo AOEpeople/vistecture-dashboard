@@ -1,4 +1,4 @@
-VERSION=2.3.0
+VERSION=2.3.1
 
 .PHONY: docker dockerpublish test run run-demo
 
@@ -14,9 +14,11 @@ test:
 	go test -vet=all ./...
 
 docker:
-	docker build -t aoepeople/vistecture-dashboard .
+	docker buildx build --tag aoepeople/vistecture-dashboard:latest --platform linux/amd64 .
 
-dockerpublish: docker
-	docker tag aoepeople/vistecture-dashboard:latest aoepeople/vistecture-dashboard:$(VERSION)
-	docker push aoepeople/vistecture-dashboard:latest
-	docker push aoepeople/vistecture-dashboard:$(VERSION)
+dockerpublish:
+	docker buildx build \
+    				--push \
+    				--tag aoepeople/vistecture-dashboard:latest \
+    				--tag aoepeople/vistecture-dashboard:$(VERSION) \
+    				--platform linux/amd64 .
