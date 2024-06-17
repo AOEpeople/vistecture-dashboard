@@ -2,7 +2,7 @@ module github.com/AOEpeople/vistecture-dashboard/v2
 
 go 1.22.0
 
-toolchain go1.22.2
+toolchain go1.22.4
 
 require (
 	github.com/AOEpeople/vistecture/v2 v2.5.2
