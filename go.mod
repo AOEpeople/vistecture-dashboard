@@ -7,9 +7,9 @@ toolchain go1.22.2
 require (
 	github.com/AOEpeople/vistecture/v2 v2.5.2
 	github.com/prometheus/client_golang v1.19.0
-	k8s.io/api v0.30.0
-	k8s.io/apimachinery v0.30.0
-	k8s.io/client-go v0.30.0
+	k8s.io/api v0.30.2
+	k8s.io/apimachinery v0.30.2
+	k8s.io/client-go v0.30.2
 )
 
 require (
