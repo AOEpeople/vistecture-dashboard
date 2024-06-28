@@ -14,11 +14,11 @@ test:
 	go test -vet=all ./...
 
 docker:
-	docker buildx build --tag aoepeople/vistecture-dashboard:latest --platform linux/amd64 .
+	docker buildx build --tag aoepeople/vistecture-dashboard:latest --platform linux/amd64,linux/arm64 .
 
 dockerpublish:
 	docker buildx build \
     				--push \
     				--tag aoepeople/vistecture-dashboard:latest \
     				--tag aoepeople/vistecture-dashboard:$(VERSION) \
-    				--platform linux/amd64 .
+    				--platform linux/amd64,linux/arm64 .
