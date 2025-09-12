@@ -544,9 +544,11 @@ func findMetricsPort(app *vistectureCore.Application, service v1.Service) int32 
 		}
 	}
 
-	for _, port := range service.Spec.Ports {
-		if port.Name == "metrics" {
-			return port.Port
+	if portName, found := app.Properties["healthCheckPortName"]; found {
+		for _, port := range service.Spec.Ports {
+			if port.Name == portName {
+				return port.Port
+			}
 		}
 	}
 
