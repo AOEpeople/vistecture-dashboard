@@ -420,9 +420,9 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		}
 	}
 
-	foundMetricsPort := findMetricsPort(app, service)
+	foundHealthcheckPort := findHealthcheckPort(app, service)
 
-	domain := fmt.Sprintf("%s:%d", k8sHealthCheckServiceName, foundMetricsPort)
+	domain := fmt.Sprintf("%s:%d", k8sHealthCheckServiceName, foundHealthcheckPort)
 	healthStatusOfService, reason, healthcheckType := checkHealth(d, "http://"+domain, app.Properties["healthCheckPath"])
 	d.AppStateInfo.HealthCheckType = healthcheckType
 
@@ -536,7 +536,7 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 
 }
 
-func findMetricsPort(app *vistectureCore.Application, service v1.Service) int32 {
+func findHealthcheckPort(app *vistectureCore.Application, service v1.Service) int32 {
 	if port, found := app.Properties["healthCheckPort"]; found {
 		intPort, err := strconv.ParseInt(port, 10, 32)
 		if err == nil {
