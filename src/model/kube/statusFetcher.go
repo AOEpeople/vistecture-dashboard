@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -419,7 +420,9 @@ func checkDeploymentWithHealthCheck(name string, app *vistectureCore.Application
 		}
 	}
 
-	domain := fmt.Sprintf("%s:%d", k8sHealthCheckServiceName, service.Spec.Ports[0].Port)
+	foundMetricsPort := findMetricsPort(app, service)
+
+	domain := fmt.Sprintf("%s:%d", k8sHealthCheckServiceName, foundMetricsPort)
 	healthStatusOfService, reason, healthcheckType := checkHealth(d, "http://"+domain, app.Properties["healthCheckPath"])
 	d.AppStateInfo.HealthCheckType = healthcheckType
 
@@ -531,6 +534,23 @@ func checkHealth(status AppDeploymentInfo, checkBaseUrl string, healtcheckPath s
 
 	return true, "", HealthCheckType_SimpleCheck
 
+}
+
+func findMetricsPort(app *vistectureCore.Application, service v1.Service) int32 {
+	if port, found := app.Properties["healthCheckPort"]; found {
+		intPort, err := strconv.ParseInt(port, 10, 32)
+		if err == nil {
+			return int32(intPort)
+		}
+	}
+
+	for _, port := range service.Spec.Ports {
+		if port.Name == "metrics" {
+			return port.Port
+		}
+	}
+
+	return service.Spec.Ports[0].Port
 }
 
 func buildImageStruct(imageUrl string) Image {

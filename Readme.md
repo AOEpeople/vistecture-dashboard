@@ -34,6 +34,7 @@ The following "Properties" are used to control dashboard behaviour
 (See example folder for an example)
 - `deployment`: Has to be set to `kubernetes` (otherwise app is not checked)
 - `healthCheckPath`: Healthcheck endpoint (relative path) (Optional - if not set just the base url is called) - If a healthCheckPath is configured it need to match the defined format (see below)
+- `healthCheckPort`: Healthcheck port (Optional - if not set then port with the name `metrics` is looked up, and if it is also not found - then just first port of service is used)
 - `apiDocPath`: Optional the relative path to an API spec (just used to show a link)
 - `k8sDeploymentName`: Override the name of the deployment in kubernetes that is checked(default = appname)
 - `k8sHealthCheckServiceName`: Override service name that is used to check health (default = appname)
