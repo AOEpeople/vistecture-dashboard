@@ -3,7 +3,7 @@ module github.com/AOEpeople/vistecture-dashboard/v2
 go 1.23.0
 
 require (
-	github.com/AOEpeople/vistecture/v2 v2.5.2
+	github.com/AOEpeople/vistecture/v2 v2.5.6
 	github.com/prometheus/client_golang v1.19.1
 	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
